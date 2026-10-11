@@ -1,4 +1,7 @@
 # Solar Plant Simulator
+## Project layout
+
+```
 solar-plant-sim/
 ├── docker-compose.yml    # MariaDB (later Ignition, API, web)
 ├── .env                  # secrets, never committed
@@ -8,3 +11,4 @@ solar-plant-sim/
 ├── ignition/             # Ignition project (Modules 4–5)
 ├── api/                  # Node.js API (Module 6)
 └── web/                  # Angular dashboard (Module 7)
+```
