@@ -1,3 +1,7 @@
+-- Using a window function over the telemetry data to 
+--  identify gaps in the readings for each point.
+--  Flags any gaps over 3 minutes (180 seconds) as a potential data gap.
+
 SELECT device, point, ts AS gap_start, next_ts AS gap_end,
        TIMESTAMPDIFF(SECOND, ts, next_ts) AS gap_s
 FROM (
