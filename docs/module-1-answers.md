@@ -36,3 +36,13 @@ below its rating, so it never clips and its AC output comes within about 5% of i
 neighbors despite a 25% DC loss. The fault is therefore most visible in AC data in
 the morning and evening when running lower than capacity, or at any hour by 
 comparing DC power.
+
+## 1.4 15-minute rollup
+Created the 15 minute rollup table with 02_schema.sql
+Query in 1_4_15-minute_rollup.sql insert 2589 samples nesting the select statement 
+  in the Insert statement. Possible future mods noted in the comments.
+Keeping n_samples records how many raw values went into each 15-minute average. 
+Once raw data is purged, it is the only way to tell a complete bucket from one 
+built on partial data (e.g. SPS01_B01_INV02 17:15 has 10 of 15 samples because 
+of the comms gap, and its 17:00 bucket has no row at all). It lets reports flag
+incomplete intervals and lets hourly rollups use correctly weighted averages.
