@@ -20,4 +20,4 @@ solar-plant-sim/
 4. run python python/sim/generate_day.py
 5. open mariadb and source db/queries/*.sql for each exercise
 
-See the module-1-answers.md file for the results at the time this repo was updated
+See the docs/module-1-answers.md file for the results at the time this module was completed
