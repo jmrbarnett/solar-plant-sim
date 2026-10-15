@@ -1,0 +1,43 @@
+MariaDB [plant]> select * from plant_setpoint;
++---------+------------+-----------+------------+
+| site_id | p_limit_kw | pf_target | updated_by |
++---------+------------+-----------+------------+
+|       1 |     2000.0 |     1.000 | seed       |
++---------+------------+-----------+------------+
+1 row in set (0.002 sec)
+
+MariaDB [plant]> update plant_setpoint set p_limit_kw = 1850;
+Query OK, 1 row affected (0.007 sec)
+Rows matched: 1  Changed: 1  Inserted: 1  Warnings: 0
+
+MariaDB [plant]> select * from plant_setpoint;
++---------+------------+-----------+------------+
+| site_id | p_limit_kw | pf_target | updated_by |
++---------+------------+-----------+------------+
+|       1 |     1850.0 |     1.000 | seed       |
++---------+------------+-----------+------------+
+1 row in set (0.000 sec)
+
+MariaDB [plant]> update plant_setpoint set p_limit_kw = 1200;
+Query OK, 1 row affected (0.007 sec)
+Rows matched: 1  Changed: 1  Inserted: 1  Warnings: 0
+
+MariaDB [plant]> select site_id, p_limit_kw, pf_target, updated_by, row_start, row_end 
+    -> from plant_setpoint FOR SYSTEM_TIME ALL
+    -> order by ROW_START;
++---------+------------+-----------+------------+----------------------------+----------------------------+
+| site_id | p_limit_kw | pf_target | updated_by | row_start                  | row_end                    |
++---------+------------+-----------+------------+----------------------------+----------------------------+
+|       1 |     2000.0 |     1.000 | seed       | 2026-10-13 04:32:43.154672 | 2026-10-15 18:46:34.198502 |
+|       1 |     1850.0 |     1.000 | seed       | 2026-10-15 18:46:34.198502 | 2026-10-15 18:47:56.861484 |
+|       1 |     1200.0 |     1.000 | seed       | 2026-10-15 18:47:56.861484 | 2106-02-07 06:28:15.999999 |
++---------+------------+-----------+------------+----------------------------+----------------------------+
+3 rows in set (0.001 sec)
+
+MariaDB [plant]> select * from plant_setpoint;
++---------+------------+-----------+------------+
+| site_id | p_limit_kw | pf_target | updated_by |
++---------+------------+-----------+------------+
+|       1 |     1200.0 |     1.000 | seed       |
++---------+------------+-----------+------------+
+1 row in set (0.000 sec)

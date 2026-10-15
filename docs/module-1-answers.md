@@ -213,3 +213,41 @@ shading, and downtime to name a few. The comms gap should not affect the power d
 since it is a data loss not power loss.
 
 ## 1.6 Ramp Rate
+Running 1_6_largest_1_min_change.sql we find that there is a cloud clearing event that
+violates the "no more than 10% change" rule.
+MariaDB [plant]> source db/queries/1_6_largest_1_min_change.sql
++-------------------------+---------+--------+-----------------+----------------------+
+| ts                      | from_kw | to_kw  | ramp_kw_per_min | ramp_pct_cap_per_min |
++-------------------------+---------+--------+-----------------+----------------------+
+| 2026-10-09 15:44:00.000 |   793.6 | 1034.1 |           240.4 |                12.02 |
++-------------------------+---------+--------+-----------------+----------------------+
+1 row in set (0.002 sec)
+
+## 1.7 Setpoint Audit
+Prior to making any changes the plant_setpoint a query to select all produces the following:
++---------+------------+-----------+------------+
+| site_id | p_limit_kw | pf_target | updated_by |
++---------+------------+-----------+------------+
+|       1 |     2000.0 |     1.000 | seed       |
++---------+------------+-----------+------------+
+1 row in set (0.002 sec)
+Following two changes to the p_limit_kw (the first to 1850.0 and the second to 1200.0) a 
+simple select * shows:
++---------+------------+-----------+------------+
+| site_id | p_limit_kw | pf_target | updated_by |
++---------+------------+-----------+------------+
+|       1 |     1200.0 |     1.000 | seed       |
++---------+------------+-----------+------------+
+1 row in set (0.000 sec)
+while the following shows all points of change:
+MariaDB [plant]> select site_id, p_limit_kw, pf_target, updated_by, row_start, row_end 
+    -> from plant_setpoint FOR SYSTEM_TIME ALL
+    -> order by ROW_START;
++---------+------------+-----------+------------+----------------------------+----------------------------+
+| site_id | p_limit_kw | pf_target | updated_by | row_start                  | row_end                    |
++---------+------------+-----------+------------+----------------------------+----------------------------+
+|       1 |     2000.0 |     1.000 | seed       | 2026-10-13 04:32:43.154672 | 2026-10-15 18:46:34.198502 |
+|       1 |     1850.0 |     1.000 | seed       | 2026-10-15 18:46:34.198502 | 2026-10-15 18:47:56.861484 |
+|       1 |     1200.0 |     1.000 | seed       | 2026-10-15 18:47:56.861484 | 2106-02-07 06:28:15.999999 |
++---------+------------+-----------+------------+----------------------------+----------------------------+
+3 rows in set (0.001 sec)
