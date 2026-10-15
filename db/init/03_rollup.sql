@@ -7,4 +7,4 @@ CREATE TABLE telemetry_15m (
   max_value DOUBLE,
   n_samples INT UNSIGNED,
   PRIMARY KEY (point_id, ts_15m)
-)
+);

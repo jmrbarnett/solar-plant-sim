@@ -41,3 +41,7 @@ MariaDB [plant]> select * from plant_setpoint;
 |       1 |     1200.0 |     1.000 | seed       |
 +---------+------------+-----------+------------+
 1 row in set (0.000 sec)
+
+NOTED FOR FUTURE REFERENCE: Should have included updated_by when updating the p_limit_kw. Also should have 
+used where site_id = 1 to affect only the desired site (even if it is the only one there at the moment).
+See 1_7_setpoint_audit.sql for a saved example

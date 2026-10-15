@@ -42,7 +42,7 @@ Inverter with fewer samples, and why: SPS01_B01_INV02 has 20 fewer samples.
 +-----------------+-------------+---------+
 27 rows in set (0.024 sec)
 
-When looking at the time series for SPS01_B01_INV01 there is a data gap 
+When looking at the time series for SPS01_B01_INV02 there is a data gap 
 from 2026-10-09 17:00:00.000 to 2026-10-09 17:19:00.000
 
 MariaDB [plant]> source db/queries/1_2_missing_minutes_seq_engine.sql
@@ -195,7 +195,7 @@ Where e_ac_kwh is the energy actually delivered over the day. The value of h_poa
 is the number of hours of full solar energy that each square meter of the panel produced
 during the day (reference yield). Because this is below the values expected for a clear 
 day in Florida (5-6 hours), it suggest that the day was cloudy and clipping didn't occur.
-The dc_capacity_kw is the rated plant size, and pr is the calculated performace ratio.
+The dc_capacity_kw is the rated plant size, and pr is the calculated performance ratio.
 
 Ideal energy  = plant size × equivalent full-sun hours
               = 2,600 kW × 3.917 h
@@ -205,7 +205,7 @@ PR            = actual ÷ ideal
               = 9,389.2 ÷ 10,184
               = 0.922
 
-The 92.2% performace rating is unrealistic as a typical plant runs around 78%-85%. The
+The 92.2% performance rating is unrealistic as a typical plant runs around 78%-85%. The
 temperature values are not being used in any of the calculations thus far and they can 
 produce the biggest losses in a real-time system (6-9% according to Claude). Other
 potential loss factors include aging wiring, reflection/low-light, inverter losses, 
@@ -213,8 +213,18 @@ shading, and downtime to name a few. The comms gap should not affect the power d
 since it is a data loss not power loss.
 
 ## 1.6 Ramp Rate
-Running 1_6_largest_1_min_change.sql we find that there is a cloud clearing event that
-violates the "no more than 10% change" rule.
+Running 1_6_num_violations.sql and 1_6_largest_1_min_change.sql we find that there is 
+a cloud clearing event (because ramp_up, not ramp_down) and that because the 
+ramp_pvt_cap_per_min is 12.02% it violates the "no more than 10% change" rule.
+
+MariaDB [plant]> source db/queries/1_6_num_violations.sql
++------------+---------+-----------+
+| violations | ramp_up | ramp_down |
++------------+---------+-----------+
+|          1 |       1 |         0 |
++------------+---------+-----------+
+1 row in set (0.003 sec)
+
 MariaDB [plant]> source db/queries/1_6_largest_1_min_change.sql
 +-------------------------+---------+--------+-----------------+----------------------+
 | ts                      | from_kw | to_kw  | ramp_kw_per_min | ramp_pct_cap_per_min |
@@ -280,3 +290,4 @@ MariaDB [plant]> explain partitions select * from telemetry
 +------+-------------+-----------+------------+------+---------------+------+---------+------+-------+-------------+
 1 row in set (0.001 sec)
 
+NOTED FOR FUTURE REFERENCE: Adding the partition has been captured in db/migrations/001_add_p2027_01.sql.
