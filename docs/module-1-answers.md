@@ -251,3 +251,32 @@ MariaDB [plant]> select site_id, p_limit_kw, pf_target, updated_by, row_start, r
 |       1 |     1200.0 |     1.000 | seed       | 2026-10-15 18:47:56.861484 | 2106-02-07 06:28:15.999999 |
 +---------+------------+-----------+------------+----------------------------+----------------------------+
 3 rows in set (0.001 sec)
+
+## 1.8 Retention
+Added a partition for Jan 2027 by splitting pmax.
+MariaDB [plant]> alter table telemetry reorganize partition 
+    -> pmax into (
+    -> partition p2027_01 values less than ('2027-02-01'),
+    -> partition pmax values less than (MAXVALUE));
+Query OK, 0 rows affected (0.064 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+Verifying that the new partition exists we can use explain either generally on telemetry or using ts bounds
+MariaDB [plant]> explain partitions
+    -> select * from telemetry;
++------+-------------+-----------+------------------------------------------+------+---------------+------+---------+------+-------+-------+
+| id   | select_type | table     | partitions                               | type | possible_keys | key  | key_len | ref  | rows  | Extra |
++------+-------------+-----------+------------------------------------------+------+---------------+------+---------+------+-------+-------+
+|    1 | SIMPLE      | telemetry | p2026_10,p2026_11,p2026_12,p2027_01,pmax | ALL  | NULL          | NULL | NULL    | NULL | 30274 |       |
++------+-------------+-----------+------------------------------------------+------+---------------+------+---------+------+-------+-------+
+1 row in set (0.002 sec)
+
+MariaDB [plant]> explain partitions select * from telemetry
+    -> where ts > '2026-10-9' and ts < '2026-10-10';
++------+-------------+-----------+------------+------+---------------+------+---------+------+-------+-------------+
+| id   | select_type | table     | partitions | type | possible_keys | key  | key_len | ref  | rows  | Extra       |
++------+-------------+-----------+------------+------+---------------+------+---------+------+-------+-------------+
+|    1 | SIMPLE      | telemetry | p2026_10   | ALL  | NULL          | NULL | NULL    | NULL | 30270 | Using where |
++------+-------------+-----------+------------+------+---------------+------+---------+------+-------+-------------+
+1 row in set (0.001 sec)
+
