@@ -5,7 +5,9 @@
 --         : Requires that max_recursive_iterations is set to at least 1440 
 --           (the number of minutes in a day) in the database configuration.
 --           This can be done with set session max_recursive_iterations = 1440
---           or by changing the configuration file.
+--           or by changing the configuration file. If run without changing the
+--           configuration, the query will halt at 1000 iterations and return with
+--           a warning. 
 --         : Does not require knowing the faulty device/point in advance, 
 --           but does use a known point_id
 -- Expected: 20 rows of timestamps, 17:00 through 17:19
