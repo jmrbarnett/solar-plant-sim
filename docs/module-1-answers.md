@@ -211,3 +211,5 @@ produce the biggest losses in a real-time system (6-9% according to Claude). Oth
 potential loss factors include aging wiring, reflection/low-light, inverter losses, 
 shading, and downtime to name a few. The comms gap should not affect the power delivered
 since it is a data loss not power loss.
+
+## 1.6 Ramp Rate
