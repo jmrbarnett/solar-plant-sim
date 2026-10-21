@@ -221,3 +221,7 @@ __marimo__/
 
 # Local environment variables
 .env
+
+# Files for testing some Python but not intended for delivery
+python/scratch.py
+a4_drills_answers.py
