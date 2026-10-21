@@ -1,0 +1,20 @@
+[site]
+code = "SPS01"
+ac_kw = 2000.0
+dc_kw = 2600.0
+blocks = 2
+inverters_per_block = 4
+inverter_rated_kw = 250.0
+
+[sim]
+start = "2026-10-10T11:00:00"     # UTC; just before sunrise
+time_scale = 60.0                 # simulated seconds per real second
+poll_interval_s = 60.0            # simulated seconds between polls
+seed = 42
+
+[faults]
+underperformer = "SPS01_B02_INV03"
+underperformer_derate = 0.75
+comms_device = "SPS01_B01_INV02"
+comms_start = "2026-10-10T17:00:00"
+comms_minutes = 20
