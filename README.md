@@ -3,6 +3,7 @@
 ## Module 1 - Development Environment and MariaDB
 
 ### Project Modules
+```
 |--------------------------------|      |-----------------------------|     |-------------------------------|
 | Python Field Simulators        |      | Industrial protocols        |     | Ignition 8.3 Gateway          |
 |  Inverters, meter, met station |----->|  Modbus TCP, OPC-UA         |---->|  Tags, alarms, historian, HMI |
@@ -18,7 +19,7 @@
 |  Telemetry + historian tables  |----->|  REST + WebSocket Live Feed |---->|  Plant KPIs in the browser    |
 | Module 1                       |      | Module 6                    |     | Module 7                      |
 |--------------------------------|      |-----------------------------|     |-------------------------------|
-
+```
 ### Project layout
 ```
 solar-plant-sim/
@@ -34,6 +35,7 @@ solar-plant-sim/
 ## Module 2 - Python for Field Telemetry
 
 ## Python Modules
+```
                           read()              asyncio.Queue               executemany
 |-------------------------|   |--------------------|   |---------------------|   |------------------|
 | Field Devices           |   | Poller             |   | Telemetry           |   | MariaDB          |
@@ -42,9 +44,9 @@ solar-plant-sim/
 | weather model           |   | all in parallel    |   | thread, retries     |   | on first use     |
 | weather.py & devices.py |   | poller.py          |   | writer.py & db.py   |   | Docker:plant-db  |
 |-------------------------|   |--------------------|   |---------------------|   |------------------|
-
+```
 ### Project layout
-'''
+```
 python/
 ├── .venv/
 ├── pyproject.toml            # replaces requirements.txt
@@ -66,7 +68,7 @@ python/
 │   └── test_poller.py
 └── sim/
     └── generate_day.py       # Module 1, unchanged
-'''
+```
 
 ## How to Run
 Set up Environment to Run
