@@ -77,3 +77,90 @@ z = [[lst] * 3] * 2
 print(z)
 z[0][0] = "newstr"
 priSnt(z)
+
+## Part B
+Set up directory structure and copied the configuration *.py files into place
+Use pip install -e ".[dev]" to utilize pyproject.toml instead of requirements.txt to list dependencies
+plant.toml sets up default values for runtime using tomllib
+__init__.py sets up the plant simulator version
+config.py declares configuration dataclasses (frozen) for different scenerios
+All *.py need to use logging rather than print to provide feedback
+
+## Part C
+Copied device models *.py files into place including clock.py, weather.py, and devices.py
+Design points
+    • state() vs read() separates physics from communications. state() is what the equipment is doing; read() is what SCADA receives. The meter calls inv.state(), so it still sees an inverter whose comms are down, exactly the lesson from Exercise 1.5.
+    • State is cached per timestamp. The meter and the poller both ask an inverter for 17:05; the random scatter must be drawn once, or the meter total won't match the inverters.
+    • Each inverter gets its own Random. Results stay repeatable from the seed, whatever order the async poller happens to read devices in.
+    • Temperature loss is new. At noon the modules run near 60 °C, about 12% below their 25 °C rating. Expect a lower Performance Ratio than Module 1's 0.922 (Exercise 2.2).
+    • The template method pattern: Device.read() holds the common logic and calls the abstract _compute() that each subclass supplies. The leading underscore marks it internal by convention; Python doesn't enforce private.
+
+## Part D
+Concurrency and the async poller
+Using asyncio in poller.py
+    How it works
+    • asyncio.TaskGroup starts one task per device and waits for all of them before the block ends, like spawning threads and joining them all. It's structured concurrency: no task can outlive the cycle that started it.
+    • _poll_one catches its own errors. In a TaskGroup, an unhandled exception cancels every sibling task. One dead inverter must never stop the others from being polled.
+    • asyncio.wait_for(..., timeout) gives each device its own deadline. A hung device costs at most 2 seconds and is counted in missed, not waited on forever.
+    • The timestamp t is the scheduled poll time, not the moment each reply arrived. All devices in a cycle share one timestamp, which keeps your SQL comparisons (fleet median per ts) working.
+    • asyncio.Queue(maxsize=...) provides backpressure. If the database slows down, the queue fills and put() waits, so the poller slows instead of eating all memory. That's a bounded buffer, the same idea as a ring buffer between threads in C.
+    • Schedule from a fixed timeline (t += interval), never sleep(interval) after each cycle; otherwise each cycle's duration accumulates as drift.
+
+## Part E
+Writing to MariaDB
+    Design notes:
+    • Flush on size or age: a full batch (500 rows) goes immediately; a partial batch waits at most 2 seconds. That's the classic latency-vs-efficiency trade-off.
+    • asyncio.to_thread runs the blocking MariaDB call in a worker thread, so the event loop keeps polling while the insert runs.
+    • The None sentinel tells the writer that no more data is coming, and the finally block guarantees the last partial batch is written, even on Ctrl+C.
+    • ON DUPLICATE KEY UPDATE makes reruns safe (idempotent), as in Exercise 1.4.
+    • A connection per flush is simple and robust, and fine every few seconds. Real services use a connection pool; that's Exercise 2.7.
+    • Dropping after 3 retries is a known weakness. A real historian buffers to disk instead ("store and forward"); Exercise 2.6.
+
+    MariaDB [plant]> select device, point, count(*) as samples 
+    -> from v_tlm
+    -> where ts >= '2026-10-10' and ts < '2026-10-11'
+    -> group by device, point
+    -> order by device, point;
++-----------------+-------------+---------+
+| device          | point       | samples |
++-----------------+-------------+---------+
+| SPS01_B01_INV01 | AC_P_KW     |     720 |
+| SPS01_B01_INV01 | CAB_TEMP_C  |     720 |
+| SPS01_B01_INV01 | DC_P_KW     |     720 |
+| SPS01_B01_INV01 | OPER_ST     |     720 |
+| SPS01_B01_INV02 | AC_P_KW     |     700 |
+| SPS01_B01_INV02 | CAB_TEMP_C  |     700 |
+| SPS01_B01_INV02 | DC_P_KW     |     700 |
+| SPS01_B01_INV02 | OPER_ST     |     700 |
+| SPS01_B01_INV03 | AC_P_KW     |     720 |
+| SPS01_B01_INV03 | CAB_TEMP_C  |     720 |
+| SPS01_B01_INV03 | DC_P_KW     |     720 |
+| SPS01_B01_INV03 | OPER_ST     |     720 |
+| SPS01_B01_INV04 | AC_P_KW     |     720 |
+| SPS01_B01_INV04 | CAB_TEMP_C  |     720 |
+| SPS01_B01_INV04 | DC_P_KW     |     720 |
+| SPS01_B01_INV04 | OPER_ST     |     720 |
+| SPS01_B02_INV01 | AC_P_KW     |     720 |
+| SPS01_B02_INV01 | CAB_TEMP_C  |     720 |
+| SPS01_B02_INV01 | DC_P_KW     |     720 |
+| SPS01_B02_INV01 | OPER_ST     |     720 |
+| SPS01_B02_INV02 | AC_P_KW     |     720 |
+| SPS01_B02_INV02 | CAB_TEMP_C  |     720 |
+| SPS01_B02_INV02 | DC_P_KW     |     720 |
+| SPS01_B02_INV02 | OPER_ST     |     720 |
+| SPS01_B02_INV03 | AC_P_KW     |     720 |
+| SPS01_B02_INV03 | CAB_TEMP_C  |     720 |
+| SPS01_B02_INV03 | DC_P_KW     |     720 |
+| SPS01_B02_INV03 | OPER_ST     |     720 |
+| SPS01_B02_INV04 | AC_P_KW     |     720 |
+| SPS01_B02_INV04 | CAB_TEMP_C  |     720 |
+| SPS01_B02_INV04 | DC_P_KW     |     720 |
+| SPS01_B02_INV04 | OPER_ST     |     720 |
+| SPS01_MET01     | AMB_TEMP_C  |     720 |
+| SPS01_MET01     | MOD_TEMP_C  |     720 |
+| SPS01_MET01     | POA_IRR_WM2 |     720 |
+| SPS01_MTR01     | AC_P_KW     |     720 |
++-----------------+-------------+---------+
+36 rows in set (0.024 sec)
+
+
