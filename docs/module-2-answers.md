@@ -1,6 +1,8 @@
 # Module 2 - Python for Field Telemetry
 
 ## Part A
+### A1 - Concepts mapping to C++
+
 ### A2 - Traps
 1. Mutable default arguments are shared. 
 2. Assignments never copy
@@ -10,17 +12,18 @@
 ### A3 - Idioms (used in the module)
 1. Comprehensions: build collections in one expression
 2. Unpacking
-3. Contect manager
+3. Context manager
 4. Type hints (Pylance flag mismatches)
+
 ### A4 - Drills
-1. 
-#### Begin with codes and narrow list by block (block = 2)
+#### 1. Write a comprehension that returns every inverter code from codes above that is in block 2
+##### Begin with codes and narrow list by block (block = 2)
 codes = [f"SPS01_B{b:02d}_INV{i:02d}" for b in (1, 2) for i in range(1, 5)]
 print(f"Full codes list: {codes}")
 b2_codes = [inv for inv in codes if '_B02_' in inv]
 print(f"Codes for only block 2: {b2_codes}")
-2. 
-#### Now narrow a list into a dictionary as long as a value is available
+#### 2. Given samples = [("INV01", 240.1), ("INV02", 0.0), ("INV03", None)], build a dict of code → value that keeps the 0.0 and drops the None.
+##### Now narrow a list into a dictionary as long as a value is available
 sample = [("INV01", 240.1), ("INV02", 0.0), ("INV03", None)]
 print(f"Starting list: {sample}")
 my_dict = {}
@@ -28,8 +31,8 @@ for idx in sample:
     if idx[1] is not None:
         my_dict[idx[0]] = idx[1]
 print(f"Ending dictionary w/no unreported values: {my_dict}")
-3. 
-#### Generator that yields one datetime per minute based on the start and end
+#### 3. 1. Write a generator minutes(start, end) that yields one datetime per minute, half-open like your SQL ranges.
+##### Generator that yields one datetime per minute based on the start and end
 from datetime import datetime, timedelta
 def minutes(start:datetime, end:datetime):
     t = start
@@ -37,11 +40,11 @@ def minutes(start:datetime, end:datetime):
         yield t
         print(t)
         t += timedelta(minutes=1)
-#### Extra capture minutes output into a list and print just the times from that list
+##### Extra capture minutes output into a list and print just the times from that list
 my_list = list(minutes(datetime(2026,10,9,17,0), datetime(2026,10,9,17,5)))
 print([t.strftime("%H:%M") for t in my_list])
-4. 
-#### Make a frozen dataclass to use as a key into a dictionary. Try changing a value and observe the error
+#### 4. 1. Make a frozen dataclass Point(device: str, name: str, unit: str) and use instances as dict keys. Then try changing a field and read the error.
+##### Make a frozen dataclass to use as a key into a dictionary. Try changing a value and observe the error
 from dataclasses import dataclass, FrozenInstanceError
 @dataclass(frozen=True)
 #@dataclass()    # Produces TypeError: cannot use 'Point' as a set element (unhashable type: 'Point')
@@ -53,24 +56,24 @@ point1 = point("A", "Apple", "slice")
 point2 = point("O", "Orange", "wedge")
 fruitbasket = {point1,point2}
 print(fruitbasket)
-#### Expect the exception to trigger due to frozen setting on dataclass
+##### Expect the exception to trigger due to frozen setting on dataclass
 try:
     point2.unit = "section"     # Triggers an exception!!
 except FrozenInstanceError as exc:
     print("encoutered FrozenInstanceError")
-5. 
-#### Look at creating and setting cells in the matrix
+#### 5. Predict, then run: x = [[0] * 3] * 2; x[0][0] = 1; print(x). Explain the result with A2 trap 2.
+##### Look at creating and setting cells in the matrix
 x = [[0] * 3] * 2
 x[1][1] = 7
 print(x)
-#### A matrix cannot be define if you want unique rows. This is the "assignment never copies" trap
-####  The assignment simply gives a new 'name'... reference actually for the original row and does
-####  not create a new unique row. Therefore changing one row changes all rows since there is only one
+##### A matrix cannot be define if you want unique rows. This is the "assignment never copies" trap
+#####  The assignment simply gives a new 'name'... reference actually for the original row and does
+#####  not create a new unique row. Therefore changing one row changes all rows since there is only one
 y = [[0] * 3 for _ in range(2)]
 y[0][2] = 10
 print(y)
-#### 0 can be shared because it is immutable, if it was not, you would need another layer of 
-####  definition to have unique rows and columns
+##### 0 can be shared because it is immutable, if it was not, you would need another layer of 
+#####  definition to have unique rows and columns
 lst = "mystr"
 #z = [[lst] * 3 for _ in range(2)]
 z = [[lst] * 3] * 2
@@ -116,6 +119,11 @@ Writing to MariaDB
     • A connection per flush is simple and robust, and fine every few seconds. Real services use a connection pool; that's Exercise 2.7.
     • Dropping after 3 retries is a known weakness. A real historian buffers to disk instead ("store and forward"); Exercise 2.6.
 
+## Exercises and checkpoint
+### Exercise 2.1 - Drills
+(see Part A4 - Drills)
+### Exercise 2.2 - Run and Verify
+Following initial run:
     MariaDB [plant]> select device, point, count(*) as samples 
     -> from v_tlm
     -> where ts >= '2026-10-10' and ts < '2026-10-11'
@@ -163,4 +171,80 @@ Writing to MariaDB
 +-----------------+-------------+---------+
 36 rows in set (0.024 sec)
 
+Module 1 Query against data on 2026-10-09
+MariaDB [plant]> source db/queries/1_5_performance_ratio.sql
++----------+--------------+----------------+-------+
+| e_ac_kwh | h_poa_kwh_m2 | dc_capacity_kw | pr    |
++----------+--------------+----------------+-------+
+|   9389.2 |        3.917 |         2600.0 | 0.922 |
++----------+--------------+----------------+-------+
+Update 1_5_performance_ratio.sql in two places to point to 2026-10-10 then run it:
+MariaDB [plant]> source db/queries/1_5_performance_ratio.sql
++----------+--------------+----------------+-------+
+| e_ac_kwh | h_poa_kwh_m2 | dc_capacity_kw | pr    |
++----------+--------------+----------------+-------+
+|   9453.6 |        4.254 |         2600.0 | 0.855 |
++----------+--------------+----------------+-------+
+1 row in set (0.002 sec)
 
+AC energy for the inverters is calculated in devices.py adding a temperature factor into the dc value.
+    g = weather.poa_wm2(t)
+    temp_factor = 1 + TEMP_COEFF_PER_C * (self.weather.module_temp_c(t) - 25)   # TEMP_COEFF_PER_C = -0.0035
+    dc = (self.dc_kw * 
+        g / 1000 *                                  # weather poa_wm2
+        temp_factor *                               # See above
+        self.derate *                               # derate = 1 unless specified in plant.toml 
+        self._rng.uniform(0.98, 1.0))               # small random scatter
+    ac = min(self.rated_kw, dc * INVERTER_EFF)      # clipping INVERTER_EFF = 0.975
+    
+The decreased PR compared to Module 1 is due to considering the temperature affects on the panels among other factors.
+Although the irradiance is larger on 2026-10-10 than on 2026-10-09, the increase in AC power is not as much as would be expected if the temperature didn't degrade the output. 
+
+Rerunning the exact Module 2 day (same seed, same clouds) with the losses switched off one at a time yields the following:
+Run	                                    E_AC (kWh)	H_POA (kWh/m²)	PR
+-----------------------------------------------------------------------------
+As built (temperature loss + clipping)	  9,454	      4.254	        0.855
+No temperature loss	                     10,104	      4.254	        0.914
+No clipping	                              9,454	      4.254	        0.855
+Neither	                                 10,188	      4.254	        0.921
+
+Temperature accounts for essentially the whole drop. Switching it off adds about 650 kWh and raises PR from 0.855 to 0.914, about 6.5% in the 6–9% range for real plants. More sunlight also means hotter panels, and hotter panels convert sunlight less efficiently, although irradiance rose 8.6% the ac energy rose by much less (0.7%).
+
+Losses Interact: Clipping cost nothing in the as-built run, but about 84 kWh when temperature loss was off. Hot panels produce less DC power, so the inverters rarely reached their 250 kW limit. Real loss budgets have to account for this overlap; you can’t simply add up each loss as if the others weren’t there.
+
+### Exercise 2.3 - Grow the test suite
+a. Weather returns 0 at night and it's cloud factor stays between 0.3 and 1.0 over a simulated day
+    Create test_weather.py that checks poa_wm2 
+    1. 0 at night and greater than 0 during the day
+    2. Stays between 0.3 and 1.0 for all times during the day
+    3. For good measure make sure the poa_wm2 is never negative
+b. config.load on a small TOML file written with pytest's built-in tmp_path fixture
+    Create test_config.py that uses pytest's built-in fixture tmp_path to execute using a different .toml file
+c. the writer flushes a full batch, using a fake connect function that records executemany calls instead of touching MariaDB. Run coverage and note what remains untested.
+    Create test_writer.py
+============================================= tests coverage ===============================================
+_______________________________ coverage: platform linux, python 3.14.4-final-0 ____________________________
+
+Name                       Stmts   Miss  Cover   Missing
+--------------------------------------------------------
+src/plantsim/__init__.py       1      0   100%
+src/plantsim/clock.py         11      0   100%
+src/plantsim/config.py        39      1    97%   50
+src/plantsim/db.py            37     25    32%   14-15, 29-30, 33, 36-46, 49-61
+src/plantsim/devices.py       70      0   100%
+src/plantsim/main.py          55     55     0%   2-78
+src/plantsim/poller.py        48      1    98%   54
+src/plantsim/weather.py       33      2    94%   47, 50
+src/plantsim/writer.py        66     11    83%   41-42, 64-69, 79-81
+--------------------------------------------------------
+TOTAL                        360     95    74%
+============================================= 20 passed in 0.22s ==============================================
+Takeaways:
+    * Coverage shows what ran, not what was checked. A line can be covered by a test that asserts nothing about it. 100% isn’t the goal; the important paths are.
+    * The biggest real gap is error handling (writer retries), which is typical. Failure paths need deliberately injected failures, such as a fake connection that raises mariadb.Error.
+    * Database code needs a different kind of test. That’s normal, not a flaw in the suite.
+
+### Exercise 2.4 - Communication status point
+### Exercise 2.5 - Tracker controllers
+### Exercise 2.6 - Store and Forward
+### Exercise 2.7 - Scale and connections
