@@ -225,17 +225,31 @@ c. the writer flushes a full batch, using a fake connect function that records e
 ============================================= tests coverage ===============================================
 _______________________________ coverage: platform linux, python 3.14.4-final-0 ____________________________
 
-Name                       Stmts   Miss  Cover   Missing
+Name                       Stmts   Miss  Cover   Missing    
 --------------------------------------------------------
 src/plantsim/__init__.py       1      0   100%
 src/plantsim/clock.py         11      0   100%
 src/plantsim/config.py        39      1    97%   50
-src/plantsim/db.py            37     25    32%   14-15, 29-30, 33, 36-46, 49-61
+    Not tested: The comms_start string-to-datetime conversion
+    Worth testing from 2.3b; writing it brings coverage to 100%
+src/plantsim/db.py            37     25    32%   14-15, 29-30, 33, 36-46, 49-61 
+    Not tested: connect() and PointRegistry lookups and inserts. They need a real MariaDB
+    Worth an integration test using the real DB in Docker. Separate from the fast unit tests.
 src/plantsim/devices.py       70      0   100%
 src/plantsim/main.py          55     55     0%   2-78
+    Not tested: The program's entry point: reads the config, wired everything together and runs
+    Not worth a unit test. It's glue code; and end-to-end run against the database covers it.
 src/plantsim/poller.py        48      1    98%   54
+    Not tested: The poller is behind schedule warning.
+    Low prority for testing
 src/plantsim/weather.py       33      2    94%   47, 50
+    Not tested ambient_c and module_temp_c. The device tests use FakeWeather so the real ones never run
+    Quick to add
 src/plantsim/writer.py        66     11    83%   41-42, 64-69, 79-81
+    Not tested: queue_wait timeout branch. Tests queued everything up front so the wait never times out
+    Optional for testing
+    Not tested: The retry and drop path: what happens when Maria DB raises an error
+    Most important untested code; Exercise 2.6 (store and forward) changes it
 --------------------------------------------------------
 TOTAL                        360     95    74%
 ============================================= 20 passed in 0.22s ==============================================
