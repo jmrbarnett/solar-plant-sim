@@ -24,7 +24,7 @@ async def test_every_device_polled_each_cycle():
     await poller.run(stop_at=START + timedelta(minutes=3))
     readings = drain(queue)
     assert poller.cycles == 3
-    assert len(readings) == 3 * 2 * 4            # cycles x devices x points
+    assert len(readings) == 3 * 2 * 5            # cycles x devices x (4 points + COMM_ST)
     assert {r.ts for r in readings} == {START + timedelta(minutes=m) for m in range(3)}
 
 
@@ -36,7 +36,8 @@ async def test_dead_device_is_counted_and_others_still_polled():
     poller = Poller([ok, dead], SimClock(START, FAST), 60, queue, latency_s=(0, 0))
     await poller.run(stop_at=START + timedelta(minutes=3))
     assert poller.missed == {"SPS01_B01_INV02": 3}
-    assert {r.device for r in drain(queue)} == {"SPS01_B01_INV01"}
+    dead_rows = [r for r in drain(queue) if r.device == "SPS01_B01_INV02"]
+    assert [(r.point, r.value) for r in dead_rows] == [("COMM_ST", 0.0)] * 3
 
 
 async def test_slow_device_times_out():
@@ -50,4 +51,4 @@ async def test_slow_device_times_out():
                         timeout_s=0.05)
     await poller.run(stop_at=START + timedelta(minutes=1))
     assert poller.missed["SPS01_B01_INV01"] == 1
-    assert queue.empty()
+    assert [(r.point, r.value) for r in drain(queue)] == [("COMM_ST", 0.0)]

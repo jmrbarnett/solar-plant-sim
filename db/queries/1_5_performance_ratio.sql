@@ -18,7 +18,7 @@ WITH samples AS (                         -- 1. meter power with the previous sa
          LAG(value) OVER w AS prev_kw
   FROM v_tlm
   WHERE device = 'SPS01_MTR01' AND point = 'AC_P_KW'
-    AND ts >= '2026-10-09' AND ts < '2026-10-10'
+    AND ts >= '2026-10-10' AND ts < '2026-10-11'
   WINDOW w AS (PARTITION BY point_id ORDER BY ts)
 ),
 energy AS (                               -- 2. integrate to one row of kWh
@@ -31,7 +31,7 @@ insolation AS (                           -- 3. sunlight on the panels, kWh/m2
   SELECT SUM(value) * 60 / 3600000 AS h_poa_kwh_m2
   FROM v_tlm
   WHERE device = 'SPS01_MET01' AND point = 'POA_IRR_WM2'
-    AND ts >= '2026-10-09' AND ts < '2026-10-10'
+    AND ts >= '2026-10-10' AND ts < '2026-10-11'
 ),
 plant AS (                                -- 4. DC nameplate, kW
   SELECT dc_capacity_kw FROM site WHERE code = 'SPS01'

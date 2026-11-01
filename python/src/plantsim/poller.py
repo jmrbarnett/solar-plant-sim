@@ -36,10 +36,13 @@ class Poller:
     async def _poll_one(self, dev: Device, t: datetime) -> None:
         try:
             readings = await asyncio.wait_for(self._fetch(dev, t), self.timeout_s)
+            comm_ok = 1.0
         except (CommsError, TimeoutError) as exc:
             self.missed[dev.code] += 1
             log.warning("poll %s @ %s failed: %s", dev.code, t, str(exc) or "timeout")
-            return
+            readings = []   # no valid measurements from a silent device
+            comm_ok = 0.0
+        readings.append(Reading(dev.code, "COMM_ST", t, comm_ok))   # always at least one status row per device per poll
         for r in readings:
             await self.queue.put(r)              # waits if the writer falls behind
 

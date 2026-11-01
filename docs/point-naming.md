@@ -122,6 +122,7 @@ point names below, so one template defines every inverter.
 | `AC_F_HZ`      | Hz   | Grid frequency                            | `Hz`               |
 | `AC_V_AB_V`    | V    | Line voltage A–B                          | `PPVphAB`          |
 | `AC_E_KWH`     | kWh  | Lifetime energy counter                   | `WH`               |
+| `COMM_ST`      | —    | 1 = communicating, 0 = lost               | **                 |
 | `DC_P_KW`      | kW   | DC input power                            | `DCW`              |
 | `DC_V_V`       | V    | DC input voltage                          | `DCV`              |
 | `DC_I_A`       | A    | DC input current                          | `DCA`              |
@@ -129,6 +130,7 @@ point names below, so one template defines every inverter.
 | `OPER_ST`      | —    | Operating state                           | `St`               |
 | `FAULT_ALM`    | —    | Fault / event bit-field                   | `Evt1`             |
 | `P_LIM_SP_PCT` | %    | Active power limit setpoint               | `WMaxLimPct`       |
+
 
 ### Revenue meter (`MTR`)
 
@@ -141,11 +143,13 @@ point names below, so one template defines every inverter.
 | `AC_V_AB_V`    | V    | Line voltage A–B            | `PPVphAB`          |
 | `AC_E_EXP_KWH` | kWh  | Energy exported (delivered) | `TotWhExp`         |
 | `AC_E_IMP_KWH` | kWh  | Energy imported (received)  | `TotWhImp`         |
+| `COMM_ST`      | —    | 1 = communicating, 0 = lost | **                 |
 
 ### Met station (`MET`)
 
 | Point          | Unit | Description                  | SunSpec equivalent |
 |----------------|------|------------------------------|--------------------|
+| `COMM_ST`      | —    | 1 = communicating, 0 = lost  | **                 |
 | `POA_IRR_WM2`  | W/m² | Plane-of-array irradiance    | `POAI`             |
 | `GHI_IRR_WM2`  | W/m² | Global horizontal irradiance | `GHI`              |
 | `AMB_TEMP_C`   | °C   | Ambient air temperature      | `TmpAmb`           |
@@ -153,6 +157,9 @@ point names below, so one template defines every inverter.
 | `WIND_SPD_MS`  | m/s  | Wind speed                   | `WndSpd`           |
 | `WIND_DIR_DEG` | °    | Wind direction               | `WndDir`           |
 | `RH_PCT`       | %    | Relative humidity            | `RH`               |
+
+** Produced by the poller, not read from the device, so every device has them even when it is not responding.
+These points have no SunSpec equivalent; SunSpec defines only device-side registers.
 
 ### Tracker controller (`TRK`)
 
@@ -164,7 +171,6 @@ point names below, so one template defines every inverter.
 | `MODE_ST`       | —    | 1 = tracking, 2 = backtracking, 3 = wind stow, 4 = manual, 5 = fault |
 | `MOTOR_ST`      | —    | Motor state                                                          |
 | `BATT_V_V`      | V    | Controller backup battery voltage                                    |
-| `COMM_ST`       | —    | 1 = communicating, 0 = lost                                          |
 | `WIND_STOW_ALM` | —    | Wind-stow active alarm                                               |
 | `STOW_CMD`      | —    | Command: stow now                                                    |
 | `FAULT_ALM`     | —    | Fault bit-field                                                      |
