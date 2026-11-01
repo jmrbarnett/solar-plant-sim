@@ -11,6 +11,11 @@
 --  P_DC = total DC capacity of the plant (kW)
 --  H_POA = total plane-of-array insolation over the day (kWh/m²)
 --  G_STC = standard test condition irradiance (1 kW/m²)
+--
+-- This query is used in more than one exercise. The date range should be as follows 
+--  for the associated tests:
+--    Module 1 tests: '2026-10-9' and '2026-10-10'
+--    Module 2 tests: '2026-10-10' and '2026-10-11'
       
 WITH samples AS (                         -- 1. meter power with the previous sample
   SELECT ts, value AS kw,

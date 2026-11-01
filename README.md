@@ -91,22 +91,11 @@ Module 1:
         to modify the partitions of telemetry in exercise 1.8 use db/migrations/001_p2027_01.sql
 
 Module 2: (presupposes that Module 1 has been run successfully)
-    plantsim --hours 12        # 12 simulated hours = 12 real minutes
-    Run pytest from the python directory with each new test verifying the number of successful tests run
-============================================= tests coverage ===============================================
-_________________________________________ coverage: platform linux, python 3.14.4-final-0 _________________________________________
-
-Name                       Stmts   Miss  Cover   Missing
---------------------------------------------------------
-src/plantsim/__init__.py       1      0   100%
-src/plantsim/clock.py         11      0   100%
-src/plantsim/config.py        39      1    97%   50
-src/plantsim/db.py            37     25    32%   14-15, 29-30, 33, 36-46, 49-61
-src/plantsim/devices.py       70      0   100%
-src/plantsim/main.py          55     55     0%   2-78
-src/plantsim/poller.py        48      1    98%   54
-src/plantsim/weather.py       33      2    94%   47, 50
-src/plantsim/writer.py        66     11    83%   41-42, 64-69, 79-81
---------------------------------------------------------
-TOTAL                        360     95    74%
-============================================= 20 passed in 0.22s ==============================================
+    Run the simulator as follows:
+        plantsim --hours 12        # 12 simulated hours = 12 real minutes
+    Run pytest from the python directory with each new test verifying the number of successful tests runs:
+        cd python
+        pytest                                              # all tests
+    Code coverage can be seen with the following command:
+        pytest --cov=plantsim --cov-report=term-missing     # with coverage
+    When re-running for COMM_ST points use 7 hours

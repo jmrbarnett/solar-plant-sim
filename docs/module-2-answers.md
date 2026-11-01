@@ -31,7 +31,7 @@ for idx in sample:
     if idx[1] is not None:
         my_dict[idx[0]] = idx[1]
 print(f"Ending dictionary w/no unreported values: {my_dict}")
-#### 3. 1. Write a generator minutes(start, end) that yields one datetime per minute, half-open like your SQL ranges.
+#### 3. Write a generator minutes(start, end) that yields one datetime per minute, half-open like your SQL ranges.
 ##### Generator that yields one datetime per minute based on the start and end
 from datetime import datetime, timedelta
 def minutes(start:datetime, end:datetime):
@@ -43,7 +43,7 @@ def minutes(start:datetime, end:datetime):
 ##### Extra capture minutes output into a list and print just the times from that list
 my_list = list(minutes(datetime(2026,10,9,17,0), datetime(2026,10,9,17,5)))
 print([t.strftime("%H:%M") for t in my_list])
-#### 4. 1. Make a frozen dataclass Point(device: str, name: str, unit: str) and use instances as dict keys. Then try changing a field and read the error.
+#### 4. Make a frozen dataclass Point(device: str, name: str, unit: str) and use instances as dict keys. Then try changing a field and read the error.
 ##### Make a frozen dataclass to use as a key into a dictionary. Try changing a value and observe the error
 from dataclasses import dataclass, FrozenInstanceError
 @dataclass(frozen=True)
@@ -60,7 +60,7 @@ print(fruitbasket)
 try:
     point2.unit = "section"     # Triggers an exception!!
 except FrozenInstanceError as exc:
-    print("encoutered FrozenInstanceError")
+    print("encountered FrozenInstanceError")
 #### 5. Predict, then run: x = [[0] * 3] * 2; x[0][0] = 1; print(x). Explain the result with A2 trap 2.
 ##### Look at creating and setting cells in the matrix
 x = [[0] * 3] * 2
@@ -213,7 +213,7 @@ Temperature accounts for essentially the whole drop. Switching it off adds about
 Losses Interact: Clipping cost nothing in the as-built run, but about 84 kWh when temperature loss was off. Hot panels produce less DC power, so the inverters rarely reached their 250 kW limit. Real loss budgets have to account for this overlap; you can’t simply add up each loss as if the others weren’t there.
 
 ### Exercise 2.3 - Grow the test suite
-a. Weather returns 0 at night and it's cloud factor stays between 0.3 and 1.0 over a simulated day
+a. Weather returns 0 at night and its cloud factor stays between 0.3 and 1.0 over a simulated day
     Create test_weather.py that checks poa_wm2 
     1. 0 at night and greater than 0 during the day
     2. Stays between 0.3 and 1.0 for all times during the day
@@ -237,11 +237,11 @@ src/plantsim/db.py            37     25    32%   14-15, 29-30, 33, 36-46, 49-61
     Worth an integration test using the real DB in Docker. Separate from the fast unit tests.
 src/plantsim/devices.py       70      0   100%
 src/plantsim/main.py          55     55     0%   2-78
-    Not tested: The program's entry point: reads the config, wired everything together and runs
-    Not worth a unit test. It's glue code; and end-to-end run against the database covers it.
+    Not tested: The program's entry point: reads the config, wires together and runs
+    Not worth a unit test. It's glue code; an end-to-end run against the database covers it.
 src/plantsim/poller.py        48      1    98%   54
     Not tested: The poller is behind schedule warning.
-    Low prority for testing
+    Low priority for testing
 src/plantsim/weather.py       33      2    94%   47, 50
     Not tested ambient_c and module_temp_c. The device tests use FakeWeather so the real ones never run
     Quick to add
@@ -259,6 +259,19 @@ Takeaways:
     * Database code needs a different kind of test. That’s normal, not a flaw in the suite.
 
 ### Exercise 2.4 - Communication status point
+Added COMM_ST as a Point for all devices in poller.py
+
+Created 2_4_comms_outages.sql that identifies an outage as follows:
+MariaDB [plant]> source db/queries/2_4_comms_outages.sql;
++-----------------+-------------------------+-------------------------+---------+
+| device          | outage_start            | outage_end              | minutes |
++-----------------+-------------------------+-------------------------+---------+
+| SPS01_B01_INV02 | 2026-10-10 17:00:00.000 | 2026-10-10 17:20:00.000 |      20 |
++-----------------+-------------------------+-------------------------+---------+
+1 row in set (0.005 sec)
+
+A row can be missing from telemetry for several reasons (the poller crashed, the database was down, or the device stopped responding) and they all look the same. Recording comms status explicitly as COMM_ST removes that ambiguity, separates a loss of visibility from a loss of power, and gives alarms and queries a value to act on.
+
 ### Exercise 2.5 - Tracker controllers
 ### Exercise 2.6 - Store and Forward
 ### Exercise 2.7 - Scale and connections
