@@ -6,8 +6,10 @@ from plantsim.devices import Inverter
 
 class FakeWeather:
     """Fixed conditions so results are predictable. Satisfies the WeatherSource protocol."""
-    def __init__(self, poa: float = 1000.0, ambient: float = 25.0, module: float = 25.0) -> None:
+    def __init__(self, poa: float = 1000.0, ambient: float = 25.0, module: float = 25.0,
+                 sunrise_utc = 11.3, sunset_utc = 23.0) -> None:
         self.poa, self.ambient, self.module = poa, ambient, module
+        self.sunrise_utc, self.sunset_utc = sunrise_utc, sunset_utc
 
     def poa_wm2(self, t): return self.poa
     def ambient_c(self, t): return self.ambient

@@ -273,5 +273,47 @@ MariaDB [plant]> source db/queries/2_4_comms_outages.sql;
 A row can be missing from telemetry for several reasons (the poller crashed, the database was down, or the device stopped responding) and they all look the same. Recording comms status explicitly as COMM_ST removes that ambiguity, separates a loss of visibility from a loss of power, and gives alarms and queries a value to act on.
 
 ### Exercise 2.5 - Tracker controllers
+Added a Tracker device to devices.py. Included a clamp function to limit the range of a float, a TrackerMode enum, and the Tracker class itself. 
+
+Changed _hour() in Weather to be a global function called utc_hour() so I could use that in the Tracker class code (also import of utc_hour). Also added sunrise_utc and sunset_utc to tests/fakes.py to keep it up to date with the changes.
+
+Added stuck_tracker and stuck_tracker_from to FaultConfig and included the stuck_tracker_from in the faults list in the load function in config.py. 
+
+Modified build_plant in main.py to include a list of trackers similar to inverters. Included the import of Tracker and returned the trackers list along with the other devices.
+
+Added the two lines to plant.toml to designate SPS01_B01_TRK03 as a tracker stuck from 18:00 for our tests.
+
+Added the following tests to test_devices.py to address the tracker:
+    test_tracker_follows_the_sun (parameterized with 11 scenarios to cover different times)
+    test_healthy_tracker_stays_close_to_target
+    test_stuck_tracker_holds_zero_from_fault_time
+    test_tracker_points
+
+Ran 
+    pytest -v (resulting in 34 passed tests to verify that functions performed as expected before running plantsim)
+    plantsim --hours 12 (to fill the DB with the new data that included the trackers)
+
+Created two query files that ran as follows:
+
+MariaDB [plant]> source db/queries/count_samples_in_telemetry.sql
++-------------+---------+---------+
+| device_type | devices | samples |
++-------------+---------+---------+
+| INV         |       8 |   28720 |
+| MTR         |       1 |    1440 |
+| MET         |       1 |    2880 |
+| TRK         |       8 |   23040 |
++-------------+---------+---------+
+4 rows in set (0.031 sec)
+
+MariaDB [plant]> source db/queries/2_5_stuck_tracker.sql
++-----------------+-------------------------+-------------------------+-------------+---------------+
+| device          | first_flagged           | last_flagged            | minutes_off | max_error_deg |
++-----------------+-------------------------+-------------------------+-------------+---------------+
+| SPS01_B01_TRK03 | 2026-10-10 18:00:00.000 | 2026-10-10 22:59:00.000 |         300 |          60.0 |
++-----------------+-------------------------+-------------------------+-------------+---------------+
+1 row in set (0.016 sec)
+
+
 ### Exercise 2.6 - Store and Forward
 ### Exercise 2.7 - Scale and connections

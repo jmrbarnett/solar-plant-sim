@@ -18,3 +18,5 @@ underperformer_derate = 0.75
 comms_device = "SPS01_B01_INV02"
 comms_start = "2026-10-10T17:00:00"
 comms_minutes = 20
+stuck_tracker = "SPS01_B01_TRK03"
+stuck_tracker_from = "2026-10-10T18:00:00"

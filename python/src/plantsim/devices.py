@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import IntEnum
 
-from plantsim.weather import WeatherSource
+from plantsim.weather import WeatherSource, utc_hour
 
 TEMP_COEFF_PER_C = -0.0035   # panel power change per degree C above 25 C
 INVERTER_EFF = 0.975
@@ -112,3 +112,50 @@ class MetStation(Device):
         return {"POA_IRR_WM2": self.weather.poa_wm2(t),
                 "AMB_TEMP_C": self.weather.ambient_c(t),
                 "MOD_TEMP_C": self.weather.module_temp_c(t)}
+
+
+def clamp(x: float, lo: float, hi: float) -> float:
+    """Limit x to the range lo..hi."""
+    return max(lo, min(hi, x))
+
+
+class TrackerMode(IntEnum):     # MODE_ST values from docs/point-naming.md
+    TRACKING = 1
+    BACKTRACKING = 2
+    WIND_STOW = 3
+    MANUAL = 4
+    FAULT = 5
+
+
+class Tracker(Device):
+    """Single-axis tracker controller. Follows the sun east to west; flat (0 deg) at night.
+    Sign convention: negative = facing east, positive = facing west."""
+    DEG_PER_HOUR = 15.0          # the sun moves about 15 degrees an hour
+    LIMIT_DEG = 60.0             # mechanical stops
+
+    def __init__(self, code: str, weather: WeatherSource,
+                 stuck_from: datetime | None = None, rng: random.Random | None = None,
+                 comms_outage: tuple[datetime, datetime] | None = None) -> None:
+        super().__init__(code, comms_outage)
+        self.weather = weather
+        self.stuck_from = stuck_from           # motor jams at 0 deg from this time on
+        self._rng = rng or random.Random()
+
+    def target_deg(self, t: datetime) -> float:
+        rise, sset = self.weather.sunrise_utc, self.weather.sunset_utc
+        h = utc_hour(t)
+        if not rise < h < sset:
+            return 0.0                                   # night: lie flat
+        solar_noon = (rise + sset) / 2                   # 17.15 with the default hours
+        return clamp(self.DEG_PER_HOUR * (h - solar_noon), -self.LIMIT_DEG, self.LIMIT_DEG)
+
+    def _compute(self, t: datetime) -> dict[str, float]:
+        target = self.target_deg(t)
+        if self.stuck_from is not None and t >= self.stuck_from:
+            actual = 0.0                                 # jammed: the motor no longer moves
+        else:
+            actual = target + self._rng.uniform(-0.3, 0.3)   # small positioning error
+        return {"ANG_TGT_DEG": target,
+                "ANG_ACT_DEG": actual,
+                "MODE_ST": float(TrackerMode.TRACKING)}
+    

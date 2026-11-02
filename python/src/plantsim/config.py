@@ -32,6 +32,8 @@ class FaultConfig:
     comms_device: str | None = None
     comms_start: datetime | None = None
     comms_minutes: int = 0
+    stuck_tracker: str | None = None
+    stuck_tracker_from: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -48,6 +50,8 @@ def load(path: Path) -> Config:
     faults = dict(raw.get("faults", {}))
     if "comms_start" in faults:
         faults["comms_start"] = datetime.fromisoformat(faults["comms_start"])
+    if "stuck_tracker_from" in faults:
+        faults["stuck_tracker_from"] = datetime.fromisoformat(faults["stuck_tracker_from"])
     return Config(
         site=SiteConfig(**raw["site"]),
         sim=SimConfig(

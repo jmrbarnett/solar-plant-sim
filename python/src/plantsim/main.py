@@ -11,7 +11,7 @@ from pathlib import Path
 from plantsim.clock import SimClock
 from plantsim.config import Config, load
 from plantsim.db import PointRegistry, connect
-from plantsim.devices import Device, Inverter, Meter, MetStation, Reading
+from plantsim.devices import Device, Inverter, Meter, MetStation, Reading, Tracker
 from plantsim.poller import Poller
 from plantsim.weather import Weather
 from plantsim.writer import TelemetryWriter
@@ -40,9 +40,20 @@ def build_plant(cfg: Config) -> list[Device]:
                 rng=random.Random(rng.random()),
                 comms_outage=outage if code == faults.comms_device else None,
             ))
+
+    trackers = []                                  # one per inverter, same block and number
+    for b in range(1, site.blocks + 1):
+        for i in range(1, site.inverters_per_block + 1):
+            code = f"{site.code}_B{b:02d}_TRK{i:02d}"
+            trackers.append(Tracker(
+                code, weather,
+                stuck_from=faults.stuck_tracker_from if code == faults.stuck_tracker else None,
+                rng=random.Random(rng.random()),
+            ))
+
     meter = Meter(f"{site.code}_MTR01", inverters)
     met = MetStation(f"{site.code}_MET01", weather)
-    return [*inverters, meter, met]
+    return [*inverters, *trackers, meter, met]
 
 
 async def main(config_path: Path, hours: float) -> None:
