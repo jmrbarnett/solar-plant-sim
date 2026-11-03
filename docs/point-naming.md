@@ -112,7 +112,7 @@ point names below, so one template defines every inverter.
 
 ## 6. Point lists by device type
 
-### Common tags (all devices)
+### Common Points (all devices)
 
 | Point          | Unit | Description                               | SunSpec equivalent |
 |----------------|------|-------------------------------------------|--------------------|

@@ -4,7 +4,7 @@
 ### A1 - Concepts mapping to C++
 
 ### A2 - Traps
-1. Mutable default arguments are shared. 
+1. Mutable default arguments are shared.
 2. Assignments never copy
 3. is vs ==
 4. Truthiness (0, 0.0, "", [], {}, and None)
@@ -27,7 +27,7 @@ print(f"Codes for only block 2: {b2_codes}")
 sample = [("INV01", 240.1), ("INV02", 0.0), ("INV03", None)]
 print(f"Starting list: {sample}")
 my_dict = {}
-for idx in sample: 
+for idx in sample:
     if idx[1] is not None:
         my_dict[idx[0]] = idx[1]
 print(f"Ending dictionary w/no unreported values: {my_dict}")
@@ -72,7 +72,7 @@ print(x)
 y = [[0] * 3 for _ in range(2)]
 y[0][2] = 10
 print(y)
-##### 0 can be shared because it is immutable, if it was not, you would need another layer of 
+##### 0 can be shared because it is immutable, if it was not, you would need another layer of
 #####  definition to have unique rows and columns
 lst = "mystr"
 #z = [[lst] * 3 for _ in range(2)]
@@ -124,7 +124,7 @@ Writing to MariaDB
 (see Part A4 - Drills)
 ### Exercise 2.2 - Run and Verify
 Following initial run:
-    MariaDB [plant]> select device, point, count(*) as samples 
+    MariaDB [plant]> select device, point, count(*) as samples
     -> from v_tlm
     -> where ts >= '2026-10-10' and ts < '2026-10-11'
     -> group by device, point
@@ -190,15 +190,15 @@ MariaDB [plant]> source db/queries/1_5_performance_ratio.sql
 AC energy for the inverters is calculated in devices.py adding a temperature factor into the dc value.
     g = weather.poa_wm2(t)
     temp_factor = 1 + TEMP_COEFF_PER_C * (self.weather.module_temp_c(t) - 25)   # TEMP_COEFF_PER_C = -0.0035
-    dc = (self.dc_kw * 
+    dc = (self.dc_kw *
         g / 1000 *                                  # weather poa_wm2
         temp_factor *                               # See above
-        self.derate *                               # derate = 1 unless specified in plant.toml 
+        self.derate *                               # derate = 1 unless specified in plant.toml
         self._rng.uniform(0.98, 1.0))               # small random scatter
     ac = min(self.rated_kw, dc * INVERTER_EFF)      # clipping INVERTER_EFF = 0.975
-    
+
 The decreased PR compared to Module 1 is due to considering the temperature affects on the panels among other factors.
-Although the irradiance is larger on 2026-10-10 than on 2026-10-09, the increase in AC power is not as much as would be expected if the temperature didn't degrade the output. 
+Although the irradiance is larger on 2026-10-10 than on 2026-10-09, the increase in AC power is not as much as would be expected if the temperature didn't degrade the output.
 
 Rerunning the exact Module 2 day (same seed, same clouds) with the losses switched off one at a time yields the following:
 Run	                                    E_AC (kWh)	H_POA (kWh/m²)	PR
@@ -214,7 +214,7 @@ Losses Interact: Clipping cost nothing in the as-built run, but about 84 kWh whe
 
 ### Exercise 2.3 - Grow the test suite
 a. Weather returns 0 at night and its cloud factor stays between 0.3 and 1.0 over a simulated day
-    Create test_weather.py that checks poa_wm2 
+    Create test_weather.py that checks poa_wm2
     1. 0 at night and greater than 0 during the day
     2. Stays between 0.3 and 1.0 for all times during the day
     3. For good measure make sure the poa_wm2 is never negative
@@ -225,14 +225,14 @@ c. the writer flushes a full batch, using a fake connect function that records e
 ============================================= tests coverage ===============================================
 _______________________________ coverage: platform linux, python 3.14.4-final-0 ____________________________
 
-Name                       Stmts   Miss  Cover   Missing    
+Name                       Stmts   Miss  Cover   Missing
 --------------------------------------------------------
 src/plantsim/__init__.py       1      0   100%
 src/plantsim/clock.py         11      0   100%
 src/plantsim/config.py        39      1    97%   50
     Not tested: The comms_start string-to-datetime conversion
     Worth testing from 2.3b; writing it brings coverage to 100%
-src/plantsim/db.py            37     25    32%   14-15, 29-30, 33, 36-46, 49-61 
+src/plantsim/db.py            37     25    32%   14-15, 29-30, 33, 36-46, 49-61
     Not tested: connect() and PointRegistry lookups and inserts. They need a real MariaDB
     Worth an integration test using the real DB in Docker. Separate from the fast unit tests.
 src/plantsim/devices.py       70      0   100%
@@ -273,11 +273,11 @@ MariaDB [plant]> source db/queries/2_4_comms_outages.sql;
 A row can be missing from telemetry for several reasons (the poller crashed, the database was down, or the device stopped responding) and they all look the same. Recording comms status explicitly as COMM_ST removes that ambiguity, separates a loss of visibility from a loss of power, and gives alarms and queries a value to act on.
 
 ### Exercise 2.5 - Tracker controllers
-Added a Tracker device to devices.py. Included a clamp function to limit the range of a float, a TrackerMode enum, and the Tracker class itself. 
+Added a Tracker device to devices.py. Included a clamp function to limit the range of a float, a TrackerMode enum, and the Tracker class itself.
 
-Changed _hour() in Weather to be a global function called utc_hour() so I could use that in the Tracker class code (also import of utc_hour). Also added sunrise_utc and sunset_utc to tests/fakes.py to keep it up to date with the changes.
+Changed _hour() in Weather to be a module-level function called utc_hour() so I could use that in the Tracker class code (also import of utc_hour). Also added sunrise_utc and sunset_utc to tests/fakes.py to keep it up to date with the changes.
 
-Added stuck_tracker and stuck_tracker_from to FaultConfig and included the stuck_tracker_from in the faults list in the load function in config.py. 
+Added stuck_tracker and stuck_tracker_from to FaultConfig and included the stuck_tracker_from in the faults list in the load function in config.py.
 
 Modified build_plant in main.py to include a list of trackers similar to inverters. Included the import of Tracker and returned the trackers list along with the other devices.
 
@@ -289,7 +289,7 @@ Added the following tests to test_devices.py to address the tracker:
     test_stuck_tracker_holds_zero_from_fault_time
     test_tracker_points
 
-Ran 
+Ran
     pytest -v (resulting in 34 passed tests to verify that functions performed as expected before running plantsim)
     plantsim --hours 12 (to fill the DB with the new data that included the trackers)
 
@@ -314,6 +314,9 @@ MariaDB [plant]> source db/queries/2_5_stuck_tracker.sql
 +-----------------+-------------------------+-------------------------+-------------+---------------+
 1 row in set (0.016 sec)
 
+Using the actual vs the target values for the angles can detect a stuck tracker, however, because of the
++/- 5 degree tolerance there will be a blind spot for detecting near the angle that it is stuck at. From
+the 15 degrees per hour movement and the band going from -5 to +5 around the stuck angle, there is a 40-minute timeframe where it's impossible to tell a stuck tracker from a healthy one. A tracker stuck at 0 degrees is the hardest to detect because 0 is a legitimate value for both noon and all through the night when the panels stow.
 
 ### Exercise 2.6 - Store and Forward
 ### Exercise 2.7 - Scale and connections

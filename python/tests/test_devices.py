@@ -107,4 +107,3 @@ def test_stuck_tracker_holds_zero_from_fault_time():
 def test_tracker_points():
     names = {r.point for r in make_tracker().read(T)}
     assert names == {"ANG_TGT_DEG", "ANG_ACT_DEG", "MODE_ST"}
-    

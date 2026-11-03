@@ -2,9 +2,10 @@
 -- Exercise 2.5: Tracker Controllers
 -- Purpose : Find the specific stuck trackers from target-vs-actual error
 --         : Does not require knowing the faulty device/point in advance, 
---           but does use a known point_id
+--           but filters by standard point names. Finds any stuck tracker
+--           without knowing which in advance.
 -- Expected: Stuck tracker on SPS01_B01_TRK03 from 18:00 to end of data
--- Run     : source db/queries/2_4_stuck_tracker.sql
+-- Run     : source db/queries/2_5_stuck_tracker.sql
 -- =============================================================
 
 WITH angles AS (                         -- one row per tracker per minute: target and actual side by side

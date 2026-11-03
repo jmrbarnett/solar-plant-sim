@@ -158,4 +158,3 @@ class Tracker(Device):
         return {"ANG_TGT_DEG": target,
                 "ANG_ACT_DEG": actual,
                 "MODE_ST": float(TrackerMode.TRACKING)}
-    

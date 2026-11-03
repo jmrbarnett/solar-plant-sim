@@ -10,8 +10,9 @@ NOCT_RISE_C_PER_WM2 = 25.0 / 800.0   # module runs ~25 C above ambient at 800 W/
 
 
 def utc_hour(t: datetime) -> float:
-    '''Time of day as a decimal hour, e.g. 17:09 -> 17.15.'''
+    """Time of day as a decimal hour, e.g. 17:09 -> 17.15."""
     return t.hour + t.minute / 60 + t.second / 3600
+
 
 class WeatherSource(Protocol):
     """Anything with these methods can drive the devices (real Weather or a test fake)."""
@@ -20,6 +21,7 @@ class WeatherSource(Protocol):
     def poa_wm2(self, t: datetime) -> float: ...
     def ambient_c(self, t: datetime) -> float: ...
     def module_temp_c(self, t: datetime) -> float: ...
+
 
 class Weather:
     def __init__(self, rng: random.Random, sunrise_utc: float = 11.3, sunset_utc: float = 23.0) -> None:
