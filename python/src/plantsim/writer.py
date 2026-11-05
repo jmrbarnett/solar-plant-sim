@@ -48,6 +48,7 @@ class TelemetryWriter:
         self.rows_dropped = 0
         self.spool_path = spool_path
         self.rows_spooled = 0
+        self._conn: DbConnection | None = None
 
     async def run(self, queue: asyncio.Queue[Reading | None]) -> None:
         """Consume until a None sentinel arrives. Flushes when the batch is full or old."""
@@ -73,6 +74,7 @@ class TelemetryWriter:
         finally:
             if batch:                                  # end of data, Ctrl+C or error
                 self._write_with_retry(batch)
+            self.close()
 
     def _write_with_retry(self, batch: list[Reading]) -> None:
         for attempt in range(1, self.max_retries + 1):
@@ -88,8 +90,24 @@ class TelemetryWriter:
                 time.sleep(2 ** attempt)             # 2, 4, 8 s; we're in a worker thread
         self._spool(batch)
 
+    def _connection(self) -> DbConnection:
+        """The open connection, connecting first if there isn't one."""
+        if self._conn is None:
+            self._conn = self._connect()
+            log.info("connected to database")
+        return self._conn
+
+    def close(self) -> None:
+        """Close the connection, if open. Safe to call more than once."""
+        if self._conn is not None:
+            try:
+                self._conn.close()
+            except mariadb.Error:
+                pass                                 # already broken; nothing to do
+            self._conn = None
+
     def _write(self, batch: list[Reading]) -> None:
-        conn = self._connect()
+        conn = self._connection()
         try:
             cur = conn.cursor(buffered=True)
             rows = [(self.registry.point_id(cur, r.device, r.point), r.ts, r.value, int(r.quality))
@@ -97,10 +115,8 @@ class TelemetryWriter:
             cur.executemany(INSERT_SQL, rows)
             conn.commit()
         except mariadb.Error:
-            conn.rollback()
+            self.close()            # discard it: uncommitted work is rolled back, next write reconnects
             raise
-        finally:
-            conn.close()
 
     def _spool(self, batch: list[Reading]) -> None:
         """Save a batch that could not be written, one JSON object per line."""

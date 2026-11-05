@@ -3,6 +3,7 @@ import asyncio
 from datetime import datetime, timedelta
 
 import mariadb
+import pytest
 
 from plantsim.devices import Quality, Reading
 from plantsim.writer import TelemetryWriter
@@ -114,3 +115,27 @@ def test_failed_batch_is_spooled_then_replayed(tmp_path, monkeypatch):
     assert not spool.exists()
     assert [len(c) for c in conn.executemany_calls] == [2, 3]
     assert writer.rows_written == 5
+
+
+def test_one_connection_is_reused_until_an_error():
+    conn = FlakyConnection()
+    conn.down = False
+    connects = []
+
+    def connect():
+        connects.append(1)
+        return conn
+
+    writer = TelemetryWriter(connect, FakeRegistry())
+    writer._write(make_readings(2))
+    writer._write(make_readings(2))
+    assert len(connects) == 1                        # second write reused the connection
+
+    conn.down = True
+    with pytest.raises(mariadb.Error):
+        writer._write(make_readings(1))              # error: connection is discarded
+    assert conn.closed
+
+    conn.down = False
+    writer._write(make_readings(1))
+    assert len(connects) == 2                        # reconnected after the error

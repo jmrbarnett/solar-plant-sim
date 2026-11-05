@@ -547,3 +547,121 @@ MariaDB [plant]> source db/queries/2_4_comms_outages.sql
 The query for data gaps returns only the original planned fault outages and COMM_ST is not among the missing points listed. Looking further we see that COMM_ST values of 0 (lost) are present for every minute in the gap, therefore, we know that there is a comms outage for SPS01_B01_INV02.
 
 ### Exercise 2.7 - Scale and connections
+Created plant_large.toml to increase the number of banks from 2 to 50, set ac_kw and dc_kw to 50000and 65000 resectively, and removed all the fault definitions since they were unnecessary. Ran the following command:
+plantsim --config config/plant_large.toml --hours 1 --verbose 2>&1 | grep "cycle"
+and found cycles to be between 0.051 to 0.054 seconds with the final message
+2026-11-05 10:23:51,449 INFO     plantsim: done: 60 cycles, 108360 rows written, 0 spooled, 0 dropped, missed polls {}
+
+Changed poller.py to poll each device in serial and re-ran the same test
+the cycles now range from 12.016 to 12.920 seconds
+2026-11-05 10:44:29,534 INFO     plantsim: done: 0 cycles, 108360 rows written, 0 spooled, 0 dropped, missed polls {}
+
+The concurrent polling is significantly more efficient and necessary for processing the data in real time. The poller does not need to wait for a response and can move on the poll the next device. The average cycle time is closer to the response time for one device instead of the sum of all the response times.
+
+Update to writer.py to keep the connection and only reconnect after an error. Ran pytest with new test with 36 passed.
+Then executed a shorter run on 10-10-2026 (plant.toml) for just one hour:
+plantsim --hours 1 --verbose 2>&1 | grep -E "connected|done", resulting in:
+2026-11-05 11:30:45,481 INFO     plantsim.writer: connected to database
+2026-11-05 11:31:42,522 INFO     plantsim: done: 60 cycles, 4680 rows written, 0 spooled, 0 dropped, missed polls {}
+This confirms that the connection was opened once for the full hour of data
+
+Next, rerun the 2.6 outage test using the following steps:
+1. Clear October 10: DELETE FROM telemetry WHERE ts >= '2026-10-10' AND ts < '2026-10-11';
+2. Run plantsim --hours 12, and stop and start the database partway through.
+The output around when the DB was stopped and restarted:
+...
+2026-11-05 12:06:32,309 INFO     plantsim.writer: wrote 156 rows (total 4602)
+2026-11-05 12:06:34,311 ERROR    plantsim.writer: write failed (attempt 1/3): Lost connection to server during query
+2026-11-05 12:06:36,312 ERROR    plantsim.writer: write failed (attempt 2/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-05 12:06:40,313 ERROR    plantsim.writer: write failed (attempt 3/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-05 12:06:48,314 WARNING  plantsim.writer: spooled 156 rows to spool.jsonl after 3 failed attempts
+2026-11-05 12:06:48,318 ERROR    plantsim.writer: write failed (attempt 1/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-05 12:06:50,319 ERROR    plantsim.writer: write failed (attempt 2/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-05 12:06:54,320 ERROR    plantsim.writer: write failed (attempt 3/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-05 12:07:02,323 WARNING  plantsim.writer: spooled 500 rows to spool.jsonl after 3 failed attempts
+2026-11-05 12:07:02,325 ERROR    plantsim.writer: write failed (attempt 1/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-05 12:07:04,327 ERROR    plantsim.writer: write failed (attempt 2/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-05 12:07:08,327 ERROR    plantsim.writer: write failed (attempt 3/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-05 12:07:16,329 WARNING  plantsim.writer: spooled 500 rows to spool.jsonl after 3 failed attempts
+2026-11-05 12:07:16,332 ERROR    plantsim.writer: write failed (attempt 1/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-05 12:07:18,332 ERROR    plantsim.writer: write failed (attempt 2/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-05 12:07:22,334 ERROR    plantsim.writer: write failed (attempt 3/3): Lost connection to server at 'handshake: reading initial communication packet', system error: 11
+2026-11-05 12:07:30,336 WARNING  plantsim.writer: spooled 500 rows to spool.jsonl after 3 failed attempts
+2026-11-05 12:07:30,348 INFO     plantsim.writer: connected to database
+2026-11-05 12:07:30,371 INFO     plantsim.writer: wrote 500 rows (total 5102)
+2026-11-05 12:07:30,392 INFO     plantsim.writer: replayed 1656 spooled rows from spool.jsonl
+2026-11-05 12:07:30,397 INFO     plantsim.writer: wrote 500 rows (total 7258)
+2026-11-05 12:07:30,402 INFO     plantsim.writer: wrote 500 rows (total 7758)
+...
+The output around the planned faults:
+...
+2026-11-05 12:11:31,956 INFO     plantsim.writer: wrote 156 rows (total 28002)
+2026-11-05 12:11:33,556 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:00:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:33,966 INFO     plantsim.writer: wrote 152 rows (total 28154)
+2026-11-05 12:11:34,552 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:01:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:35,569 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:02:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:36,007 INFO     plantsim.writer: wrote 148 rows (total 28302)
+2026-11-05 12:11:36,572 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:03:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:37,545 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:04:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:38,015 INFO     plantsim.writer: wrote 148 rows (total 28450)
+2026-11-05 12:11:38,563 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:05:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:39,550 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:06:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:40,035 INFO     plantsim.writer: wrote 148 rows (total 28598)
+2026-11-05 12:11:40,539 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:07:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:41,566 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:08:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:42,042 INFO     plantsim.writer: wrote 148 rows (total 28746)
+2026-11-05 12:11:42,558 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:09:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:43,563 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:10:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:44,050 INFO     plantsim.writer: wrote 148 rows (total 28894)
+2026-11-05 12:11:44,541 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:11:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:45,566 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:12:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:46,059 INFO     plantsim.writer: wrote 148 rows (total 29042)
+2026-11-05 12:11:46,576 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:13:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:47,557 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:14:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:48,067 INFO     plantsim.writer: wrote 148 rows (total 29190)
+2026-11-05 12:11:48,559 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:15:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:49,557 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:16:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:50,078 INFO     plantsim.writer: wrote 148 rows (total 29338)
+2026-11-05 12:11:50,547 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:17:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:51,579 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:18:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:52,086 INFO     plantsim.writer: wrote 148 rows (total 29486)
+2026-11-05 12:11:52,540 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:19:00 failed: SPS01_B01_INV02: no response
+2026-11-05 12:11:54,096 INFO     plantsim.writer: wrote 152 rows (total 29638)
+2026-11-05 12:11:56,104 INFO     plantsim.writer: wrote 156 rows (total 29794)
+...
+The final line:
+2026-11-05 12:17:32,575 INFO     plantsim: done: 720 cycles, 56080 rows written, 1656 spooled, 0 dropped, missed polls {'SPS01_B01_INV02': 20}
+
+Including all the rows added to the telemetry we should see 203260 rows:
+Day	                                    Rows
+October 9 (Module 1)	                38,820
+October 10 (normal plant, 12 hours)	    56,080
+October 11 (large plant, 1 hour)	    108,360
+Total	                                203,260
+MariaDB [plant]> select count(*) from v_tlm;
++----------+
+| count(*) |
++----------+
+|   203260 |
++----------+
+1 row in set (0.017 sec)
+
+Re-running the queries we ran for 2.6 identifying the outages we see:
+MariaDB [plant]> source db/queries/data_gaps.sql;
++-----------------+------------+-------------------------+-------------------------+-------+
+| device          | point      | gap_start               | gap_end                 | gap_s |
++-----------------+------------+-------------------------+-------------------------+-------+
+| SPS01_B01_INV02 | AC_P_KW    | 2026-10-10 16:59:00.000 | 2026-10-10 17:20:00.000 |  1260 |
+| SPS01_B01_INV02 | CAB_TEMP_C | 2026-10-10 16:59:00.000 | 2026-10-10 17:20:00.000 |  1260 |
+| SPS01_B01_INV02 | DC_P_KW    | 2026-10-10 16:59:00.000 | 2026-10-10 17:20:00.000 |  1260 |
+| SPS01_B01_INV02 | OPER_ST    | 2026-10-10 16:59:00.000 | 2026-10-10 17:20:00.000 |  1260 |
++-----------------+------------+-------------------------+-------------------------+-------+
+4 rows in set (0.068 sec)
+MariaDB [plant]> source db/queries/2_4_comms_outages.sql
++-----------------+-------------------------+-------------------------+---------+
+| device          | outage_start            | outage_end              | minutes |
++-----------------+-------------------------+-------------------------+---------+
+| SPS01_B01_INV02 | 2026-10-10 17:00:00.000 | 2026-10-10 17:20:00.000 |      20 |
++-----------------+-------------------------+-------------------------+---------+
+1 row in set (0.011 sec)
+The both queries show only the planned INV02 outage.

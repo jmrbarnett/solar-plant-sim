@@ -12,7 +12,7 @@
         |                                                                                     |
         |                                             historian and named queries             |
         |       |-----------------------------------------------------------------------------|
-        |       | 
+        |       |
         v       v
 |--------------------------------|      |-----------------------------|     |-------------------------------|
 | MariaDB 12.3                   |      | Node.js API                 |     | Angular Dashboard             |
@@ -76,15 +76,15 @@ Set up Environment to Run
     Open Ubuntu shell
         cd ~/src/solar-plant-sim
         code .
-    in VS Code terminal window 
+    in VS Code terminal window
         docker compose up -d
         docker compose ps       # wait for healthy DB
         cd python
         source .venv/bin/activate
 
-Module 1: 
+Module 1:
     python python/sim/generate_day.py
-    
+
     To look at DB
         mariadb -h 127.0.0.1 -u plant_app -p plant     # enter the plant_app user's password
         source db_queries/*.sql associated with each exercise as needed
@@ -98,4 +98,6 @@ Module 2: (presupposes that Module 1 has been run successfully)
         pytest                                              # all tests
     Code coverage can be seen with the following command:
         pytest --cov=plantsim --cov-report=term-missing     # with coverage
-    When re-running for COMM_ST points use 7 hours
+    When re-running for COMM_ST points use 7 hours instead of 12
+
+
