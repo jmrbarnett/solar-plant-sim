@@ -319,4 +319,223 @@ Using the actual vs the target values for the angles can detect a stuck tracker,
 the 15 degrees per hour movement and the band going from -5 to +5 around the stuck angle, there is a 40-minute timeframe where it's impossible to tell a stuck tracker from a healthy one. A tracker stuck at 0 degrees is the hardest to detect because 0 is a legitimate value for both noon and all through the night when the panels stow.
 
 ### Exercise 2.6 - Store and Forward
+Prior to this exersize the tlm_v sample count is as follows:
+MariaDB [plant]> select count(*) from v_tlm;
++----------+
+| count(*) |
++----------+
+|    94900 |
++----------+
+1 row in set (0.008 sec)
+
+After clearing the DB of any 10-10-2026 data:
+MariaDB [plant]> select count(*) from v_tlm;
++----------+
+| count(*) |
++----------+
+|    38820 |
++----------+
+1 row in set (0.004 sec)
+
+After re-running platsim for the 12 hours on 10-10-2026 and cycling the database with docker compose db stop, docker compose db start, approx 30 seconds apart the count is as follows:
+MariaDB [plant]> select count(*) from v_tlm;
++----------+
+| count(*) |
++----------+
+|    94244 |
++----------+
+1 row in set (0.023 sec)
+
+The significant portions of the log read as follows:
+...
+2026-11-04 12:21:29,360 INFO     plantsim.writer: wrote 156 rows (total 3822)
+2026-11-04 12:21:31,374 INFO     plantsim.writer: wrote 156 rows (total 3978)
+2026-11-04 12:21:33,376 ERROR    plantsim.writer: write failed (attempt 1/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-04 12:21:35,376 ERROR    plantsim.writer: write failed (attempt 2/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-04 12:21:39,378 ERROR    plantsim.writer: write failed (attempt 3/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-04 12:21:47,378 CRITICAL plantsim.writer: dropped 156 rows after 3 attempts
+2026-11-04 12:21:47,380 ERROR    plantsim.writer: write failed (attempt 1/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-04 12:21:49,381 ERROR    plantsim.writer: write failed (attempt 2/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-04 12:21:53,382 ERROR    plantsim.writer: write failed (attempt 3/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-04 12:22:01,382 CRITICAL plantsim.writer: dropped 500 rows after 3 attempts
+2026-11-04 12:22:01,386 ERROR    plantsim.writer: write failed (attempt 1/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-04 12:22:03,387 ERROR    plantsim.writer: write failed (attempt 2/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-04 12:22:07,440 INFO     plantsim.writer: wrote 500 rows (total 4478)
+2026-11-04 12:22:07,445 INFO     plantsim.writer: wrote 500 rows (total 4978)
+...
+2026-11-04 12:26:39,720 INFO     plantsim.writer: wrote 156 rows (total 27346)
+2026-11-04 12:26:40,787 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:00:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:41,730 INFO     plantsim.writer: wrote 152 rows (total 27498)
+2026-11-04 12:26:41,782 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:01:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:42,788 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:02:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:43,737 INFO     plantsim.writer: wrote 148 rows (total 27646)
+2026-11-04 12:26:43,780 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:03:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:44,810 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:04:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:45,744 INFO     plantsim.writer: wrote 148 rows (total 27794)
+2026-11-04 12:26:45,817 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:05:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:46,815 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:06:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:47,753 INFO     plantsim.writer: wrote 148 rows (total 27942)
+2026-11-04 12:26:47,809 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:07:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:48,781 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:08:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:49,762 INFO     plantsim.writer: wrote 148 rows (total 28090)
+2026-11-04 12:26:49,807 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:09:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:50,796 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:10:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:51,772 INFO     plantsim.writer: wrote 148 rows (total 28238)
+2026-11-04 12:26:51,793 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:11:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:52,798 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:12:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:53,780 INFO     plantsim.writer: wrote 148 rows (total 28386)
+2026-11-04 12:26:53,785 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:13:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:54,798 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:14:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:55,790 INFO     plantsim.writer: wrote 148 rows (total 28534)
+2026-11-04 12:26:55,792 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:15:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:56,801 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:16:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:57,799 INFO     plantsim.writer: wrote 163 rows (total 28697)
+2026-11-04 12:26:57,801 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:17:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:58,781 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:18:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:59,788 WARNING  plantsim.poller: poll SPS01_B01_INV02 @ 2026-10-10 17:19:00 failed: SPS01_B01_INV02: no response
+2026-11-04 12:26:59,807 INFO     plantsim.writer: wrote 186 rows (total 28883)
+...
+2026-11-04 12:32:39,816 INFO     plantsim.writer: wrote 156 rows (total 55424)
+2026-11-04 12:32:39,816 INFO     plantsim: done: 720 cycles, 55424 rows written, 656 dropped, missed polls {'SPS01_B01_INV02': 20}
+
+Still showing the failed responses built into SPS01_B01_INV02 with additional values missing for every device. We see this using data_gaps.sql modified to use 10-10-2026 instead of 10-9-2026:
+
+MariaDB [plant]> source db/queries/data_gaps.sql
++-----------------+-------------+-------------------------+-------------------------+-------+
+| device          | point       | gap_start               | gap_end                 | gap_s |
++-----------------+-------------+-------------------------+-------------------------+-------+
+| SPS01_B01_INV01 | AC_P_KW     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B01_INV01 | OPER_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B01_INV01 | DC_P_KW     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B01_INV01 | COMM_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B01_INV01 | CAB_TEMP_C  | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B01_INV02 | OPER_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_INV02 | DC_P_KW     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_INV02 | CAB_TEMP_C  | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_INV02 | AC_P_KW     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_INV02 | COMM_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_INV02 | CAB_TEMP_C  | 2026-10-10 16:59:00.000 | 2026-10-10 17:20:00.000 |  1260 |
+| SPS01_B01_INV02 | AC_P_KW     | 2026-10-10 16:59:00.000 | 2026-10-10 17:20:00.000 |  1260 |
+| SPS01_B01_INV02 | OPER_ST     | 2026-10-10 16:59:00.000 | 2026-10-10 17:20:00.000 |  1260 |
+| SPS01_B01_INV02 | DC_P_KW     | 2026-10-10 16:59:00.000 | 2026-10-10 17:20:00.000 |  1260 |
+| SPS01_B01_INV03 | CAB_TEMP_C  | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_INV03 | AC_P_KW     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_INV03 | COMM_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_INV03 | OPER_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_INV03 | DC_P_KW     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_INV04 | AC_P_KW     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_INV04 | CAB_TEMP_C  | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_INV04 | DC_P_KW     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_INV04 | OPER_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_INV04 | COMM_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_TRK01 | MODE_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_TRK01 | ANG_TGT_DEG | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_TRK01 | ANG_ACT_DEG | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_TRK01 | COMM_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B01_TRK02 | COMM_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B01_TRK02 | ANG_TGT_DEG | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B01_TRK02 | ANG_ACT_DEG | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B01_TRK02 | MODE_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B01_TRK03 | COMM_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B01_TRK03 | ANG_TGT_DEG | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B01_TRK03 | ANG_ACT_DEG | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B01_TRK03 | MODE_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B01_TRK04 | ANG_ACT_DEG | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B01_TRK04 | MODE_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B01_TRK04 | COMM_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B01_TRK04 | ANG_TGT_DEG | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B02_INV01 | CAB_TEMP_C  | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_INV01 | AC_P_KW     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_INV01 | COMM_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_INV01 | DC_P_KW     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_INV01 | OPER_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_INV02 | CAB_TEMP_C  | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_INV02 | COMM_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_INV02 | AC_P_KW     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_INV02 | OPER_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_INV02 | DC_P_KW     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_INV03 | CAB_TEMP_C  | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B02_INV03 | AC_P_KW     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B02_INV03 | OPER_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B02_INV03 | DC_P_KW     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B02_INV03 | COMM_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B02_INV04 | AC_P_KW     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_INV04 | COMM_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_INV04 | CAB_TEMP_C  | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_INV04 | DC_P_KW     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_INV04 | OPER_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_TRK01 | COMM_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_TRK01 | ANG_ACT_DEG | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_TRK01 | ANG_TGT_DEG | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_TRK01 | MODE_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_TRK02 | MODE_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B02_TRK02 | COMM_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B02_TRK02 | ANG_TGT_DEG | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B02_TRK02 | ANG_ACT_DEG | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_B02_TRK03 | ANG_ACT_DEG | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_TRK03 | COMM_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_TRK03 | MODE_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_TRK03 | ANG_TGT_DEG | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_TRK04 | ANG_TGT_DEG | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_TRK04 | MODE_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_TRK04 | ANG_ACT_DEG | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_B02_TRK04 | COMM_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 11:59:00.000 |   540 |
+| SPS01_MET01     | COMM_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_MET01     | MOD_TEMP_C  | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_MET01     | POA_IRR_WM2 | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_MET01     | AMB_TEMP_C  | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_MTR01     | AC_P_KW     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
+| SPS01_MTR01     | COMM_ST     | 2026-10-10 11:50:00.000 | 2026-10-10 12:00:00.000 |   600 |
++-----------------+-------------+-------------------------+-------------------------+-------+
+82 rows in set (0.037 sec)
+
+Rerunning with the store and forward updates results in...
+pytest returns 35 tests passed
+cleared DB of 10-10 data 38820 count for v_tlm
+...
+2026-11-04 16:56:03,401 INFO     plantsim.writer: wrote 156 rows (total 1638)
+2026-11-04 16:56:05,409 ERROR    plantsim.writer: write failed (attempt 1/3): Server has gone away
+2026-11-04 16:56:07,410 ERROR    plantsim.writer: write failed (attempt 2/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-04 16:56:11,410 ERROR    plantsim.writer: write failed (attempt 3/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-04 16:56:19,412 WARNING  plantsim.writer: spooled 156 rows to spool.jsonl after 3 failed attempts
+2026-11-04 16:56:19,415 ERROR    plantsim.writer: write failed (attempt 1/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-04 16:56:21,416 ERROR    plantsim.writer: write failed (attempt 2/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-04 16:56:25,416 ERROR    plantsim.writer: write failed (attempt 3/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-04 16:56:33,418 WARNING  plantsim.writer: spooled 500 rows to spool.jsonl after 3 failed attempts
+2026-11-04 16:56:33,422 ERROR    plantsim.writer: write failed (attempt 1/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-04 16:56:35,421 ERROR    plantsim.writer: write failed (attempt 2/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-04 16:56:39,422 ERROR    plantsim.writer: write failed (attempt 3/3): Can't connect to server on '127.0.0.1' (115)
+2026-11-04 16:56:47,423 WARNING  plantsim.writer: spooled 500 rows to spool.jsonl after 3 failed attempts
+2026-11-04 16:56:47,425 ERROR    plantsim.writer: write failed (attempt 1/3): Lost connection to server at 'handshake: reading initial communication packet', system error: 11
+2026-11-04 16:56:49,446 INFO     plantsim.writer: wrote 500 rows (total 2138)
+2026-11-04 16:56:49,463 INFO     plantsim.writer: replayed 1156 spooled rows from spool.jsonl
+2026-11-04 16:56:49,469 INFO     plantsim.writer: wrote 500 rows (total 3794)
+...
+same outages on SPS01_B01_INV02
+...
+2026-11-04 17:07:42,222 INFO     plantsim.writer: wrote 78 rows (total 56080)
+2026-11-04 17:07:42,223 INFO     plantsim: done: 720 cycles, 56080 rows written, 1156pooled, 0 dropped, missed polls {'SPS01_B01_INV02': 20}
+
+Note the 0 dropped records and 1156 spooled (went more than 30 seconds this time)
+The handshake error depends on the timing of exactly when the DB goes offline and back online. MariaDB was not ready for the login yet when platsim attempted to reconnect. This is not a problem and cleared right away on the next write.
+MariaDB [plant]> select count(*) from v_tlm;
++----------+
+| count(*) |
++----------+
+|    94900 |
++----------+
+1 row in set (0.006 sec)
+Matches the numbers from before the dropped DB
+MariaDB [plant]> source db/queries/data_gaps.sql
++-----------------+------------+-------------------------+-------------------------+-------+
+| device          | point      | gap_start               | gap_end                 | gap_s |
++-----------------+------------+-------------------------+-------------------------+-------+
+| SPS01_B01_INV02 | CAB_TEMP_C | 2026-10-10 16:59:00.000 | 2026-10-10 17:20:00.000 |  1260 |
+| SPS01_B01_INV02 | AC_P_KW    | 2026-10-10 16:59:00.000 | 2026-10-10 17:20:00.000 |  1260 |
+| SPS01_B01_INV02 | DC_P_KW    | 2026-10-10 16:59:00.000 | 2026-10-10 17:20:00.000 |  1260 |
+| SPS01_B01_INV02 | OPER_ST    | 2026-10-10 16:59:00.000 | 2026-10-10 17:20:00.000 |  1260 |
++-----------------+------------+-------------------------+-------------------------+-------+
+4 rows in set (0.053 sec)
+Returns only the original planned fault outages
+
 ### Exercise 2.7 - Scale and connections

@@ -225,3 +225,4 @@ __marimo__/
 # Files for testing some Python but not intended for delivery
 python/scratch.py
 a4_drills_answers.py
+spool.jsonl

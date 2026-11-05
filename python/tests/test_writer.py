@@ -2,6 +2,8 @@
 import asyncio
 from datetime import datetime, timedelta
 
+import mariadb
+
 from plantsim.devices import Quality, Reading
 from plantsim.writer import TelemetryWriter
 
@@ -81,3 +83,34 @@ async def test_rows_carry_point_id_timestamp_value_and_quality():
     assert first_row == (1, T0, 100.0, int(Quality.GOOD))   # (point_id, ts, value, quality)
     assert conn.commits == 1
     assert conn.closed
+
+
+class FlakyConnection(FakeConnection):
+    """Fails every write while self.down is True."""
+    def __init__(self):
+        super().__init__()
+        self.down = True
+
+    def cursor(self, buffered=False):
+        if self.down:
+            raise mariadb.Error("database unavailable")
+        return super().cursor(buffered)
+
+
+def test_failed_batch_is_spooled_then_replayed(tmp_path, monkeypatch):
+    monkeypatch.setattr("plantsim.writer.time.sleep", lambda s: None)   # skip retry waits
+    conn = FlakyConnection()
+    spool = tmp_path / "spool.jsonl"
+    writer = TelemetryWriter(lambda: conn, FakeRegistry(), spool_path=spool)
+
+    writer._write_with_retry(make_readings(3))       # database down: all retries fail
+    assert spool.exists()
+    assert writer.rows_spooled == 3
+    assert writer.rows_dropped == 0
+    assert conn.executemany_calls == []
+
+    conn.down = False                                # database back
+    writer._write_with_retry(make_readings(2))       # next write succeeds, then replays
+    assert not spool.exists()
+    assert [len(c) for c in conn.executemany_calls] == [2, 3]
+    assert writer.rows_written == 5

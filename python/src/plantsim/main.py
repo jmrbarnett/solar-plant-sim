@@ -71,8 +71,9 @@ async def main(config_path: Path, hours: float) -> None:
         await poller.run(stop_at)
         await queue.put(None)                 # tell the writer we're done
 
-    log.info("done: %d cycles, %d rows written, %d dropped, missed polls %s",
-             poller.cycles, writer.rows_written, writer.rows_dropped, dict(poller.missed))
+    log.info("done: %d cycles, %d rows written, % spooled, %d dropped, missed polls %s",
+             poller.cycles, writer.rows_written, writer.rows_spooled, writer.rows_dropped,
+             dict(poller.missed))
 
 
 def run() -> None:
