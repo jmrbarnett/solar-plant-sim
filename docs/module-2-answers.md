@@ -554,7 +554,7 @@ and found cycles to be between 0.051 to 0.054 seconds with the final message
 
 Changed poller.py to poll each device in serial and re-ran the same test
 the cycles now range from 12.016 to 12.920 seconds
-Each write is followed by a message from the poller that it is behind, growing by around 11.4 seconds each cycle to a final reported lag of 673.2 seconds over the course of one simulated hour (not including the final cycle).
+Each cycle is followed by a message from the poller that it is behind, growing by around 11.4 seconds with each cycle to a final reported lag of 673.2 seconds over the course of one simulated hour (not including the final cycle).
 2026-11-05 13:25:01,897 INFO     plantsim: done: 60 cycles, 108360 rows written, 0 spooled, 0 dropped, missed polls {}
 
 The concurrent polling is significantly more efficient and necessary for processing the data in real time. The poller does not need to wait for a response before polling the next device. The average cycle time is closer to the response time for the slowest single device instead of the sum of the response times for each polled device. A twelve second delay when polling every device once is untenable when polling must be done every second (running at 60x speed).

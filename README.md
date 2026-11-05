@@ -26,11 +26,11 @@ solar-plant-sim/
 ├── docker-compose.yml    # MariaDB (later Ignition, API, web)
 ├── .env                  # secrets, never committed
 ├── db/init/              # SQL run on first container start
-├── db/migrations         # changes to partitioning
+├── db/migrations/        # changes to partitioning
 ├── db/queries/           # KPI queries
-├── docs                  # documentation
-├── python/sim/           # telemetry generator
-├── python/src/plantsim   # Primary project folder
+├── docs/                 # documentation
+├── python/sim/           # Module 1 one-day data generator
+├── python/src/plantsim/  # simulator package (Module 2)
 ├── ignition/             # Ignition project (Modules 4–5)
 ├── api/                  # Node.js API (Module 6)
 └── web/                  # Angular dashboard (Module 7)
@@ -56,7 +56,7 @@ python/
 ├── pyproject.toml            # replaces requirements.txt
 ├── config/
 │   ├── plant.toml            # site, simulation and fault settings
-|   └── plant_large.toml      # scaled plant config
+│   └── plant_large.toml      # scaled plant config
 ├── src/
 │   └── plantsim/
 │       ├── __init__.py
@@ -69,11 +69,11 @@ python/
 │       ├── writer.py         # batching database writer
 │       └── main.py           # wiring + command line
 ├── tests/
-|   ├── fakes.py
-|   ├── test_config.py
+│   ├── fakes.py
+│   ├── test_config.py
 │   ├── test_devices.py
-|   ├── test_poller.py
-|   ├── test_weather.py
+│   ├── test_poller.py
+│   ├── test_weather.py
 │   └── test_writer.py
 └── sim/
     └── generate_day.py       # Module 1, unchanged
