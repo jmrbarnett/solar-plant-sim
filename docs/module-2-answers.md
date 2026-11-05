@@ -548,14 +548,14 @@ The query for data gaps returns only the original planned fault outages and COMM
 
 ### Exercise 2.7 - Scale and connections
 Created plant_large.toml to increase the number of blocks from 2 to 50, set ac_kw and dc_kw to 50,000 and 65,000 respectively, and removed all the fault definitions since they were unnecessary. Ran the following command:
-plantsim --config config/plant_large.toml --hours 1 --verbose 2>&1 | grep "cycle|behind"
+plantsim --config config/plant_large.toml --hours 1 --verbose 2>&1 | grep -E "cycle|behind"
 and found cycles to be between 0.051 to 0.054 seconds with the final message
 2026-11-05 10:23:51,449 INFO     plantsim: done: 60 cycles, 108360 rows written, 0 spooled, 0 dropped, missed polls {}
 
 Changed poller.py to poll each device in serial and re-ran the same test
 the cycles now range from 12.016 to 12.920 seconds
-Each write is followed by a message that the poller is behind, growing by around 12 seconds each cycle to a final reported lag of 673.2 seconds over the course of one simulated hour (not including the final 12 second lag).
-2026-11-05 10:44:29,534 INFO     plantsim: done: 60 cycles, 108360 rows written, 0 spooled, 0 dropped, missed polls {}
+Each write is followed by a message from the poller that it is behind, growing by around 11.4 seconds each cycle to a final reported lag of 673.2 seconds over the course of one simulated hour (not including the final cycle).
+2026-11-05 13:25:01,897 INFO     plantsim: done: 60 cycles, 108360 rows written, 0 spooled, 0 dropped, missed polls {}
 
 The concurrent polling is significantly more efficient and necessary for processing the data in real time. The poller does not need to wait for a response before polling the next device. The average cycle time is closer to the response time for the slowest single device instead of the sum of the response times for each polled device. A twelve second delay when polling every device once is untenable when polling must be done every second (running at 60x speed).
 
@@ -645,7 +645,7 @@ No change from previous run
 
 ...
 2026-11-05 12:17:32,575 INFO     plantsim: done: 720 cycles, 56080 rows written, 1656 spooled, 0 dropped, missed polls {'SPS01_B01_INV02': 20}
-The final line confirms 12 ours of data (720 cycles) produced 56080 rows. 1656 were spooled, 0 dropped, and 20 missing polls as expected.
+The final line confirms 12 hours of data (720 cycles) produced 56080 rows. 1656 were spooled, 0 dropped, and 20 missing polls as expected.
 
 Including all the rows added to the telemetry we should see 203260 rows:
 Day	                                    Rows

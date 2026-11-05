@@ -26,8 +26,11 @@ solar-plant-sim/
 ├── docker-compose.yml    # MariaDB (later Ignition, API, web)
 ├── .env                  # secrets, never committed
 ├── db/init/              # SQL run on first container start
+├── db/migrations         # changes to partitioning
 ├── db/queries/           # KPI queries
+├── docs                  # documentation
 ├── python/sim/           # telemetry generator
+├── python/src/plantsim   # Primary project folder
 ├── ignition/             # Ignition project (Modules 4–5)
 ├── api/                  # Node.js API (Module 6)
 └── web/                  # Angular dashboard (Module 7)
@@ -40,8 +43,9 @@ solar-plant-sim/
 |-------------------------|   |--------------------|   |---------------------|   |------------------|
 | Field Devices           |   | Poller             |   | Telemetry           |   | MariaDB          |
 | 8 inverters, meter,     |   | Reads every device |   | Batches readings,   |   | telemetry table, |
-| met station, shared     |-->| each sim minute,   |-->| inserts in a worker |-->| new points added |
-| weather model           |   | all in parallel    |   | thread, retries     |   | on first use     |
+| met station, 8 trackers,|-->| each sim minute,   |-->| inserts in a worker |-->| new points added |
+| shared weather model    |   | all in parallel    |   | thread, retries,    |   | on first use     |
+|                         |   |                    |   | spools and replay   |   |                  |
 | weather.py & devices.py |   | poller.py          |   | writer.py & db.py   |   | Docker:plant-db  |
 |-------------------------|   |--------------------|   |---------------------|   |------------------|
 ```
@@ -51,29 +55,33 @@ python/
 ├── .venv/
 ├── pyproject.toml            # replaces requirements.txt
 ├── config/
-│   └── plant.toml            # site, simulation and fault settings
+│   ├── plant.toml            # site, simulation and fault settings
+|   └── plant_large.toml      # scaled plant config
 ├── src/
 │   └── plantsim/
 │       ├── __init__.py
 │       ├── clock.py          # accelerated simulation time
 │       ├── config.py         # loads plant.toml into dataclasses
 │       ├── weather.py        # sun, clouds, temperatures
-│       ├── devices.py        # Inverter, Meter, MetStation
+│       ├── devices.py        # Inverter, Meter, MetStation, Tracker
 │       ├── poller.py         # async polling
 │       ├── db.py             # connection + point registry
 │       ├── writer.py         # batching database writer
 │       └── main.py           # wiring + command line
 ├── tests/
+|   ├── fakes.py
+|   ├── test_config.py
 │   ├── test_devices.py
-│   └── test_poller.py
+|   ├── test_poller.py
+|   ├── test_weather.py
+│   └── test_writer.py
 └── sim/
     └── generate_day.py       # Module 1, unchanged
 ```
 
-## How to Run
 ## Setup (once)
 
-Prerequisites: WSL2 Ubuntu, Docker Desktop, Python 3.12+, and the MariaDB client,
+Prerequisites: WSL2 Ubuntu, Docker Desktop, Python 3.12+, the MariaDB client,
 and the build tools for the mariadb Python package
 
 ```bash
