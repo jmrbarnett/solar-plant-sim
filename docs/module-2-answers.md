@@ -319,7 +319,7 @@ Using the actual vs the target values for the angles can detect a stuck tracker,
 the 15 degrees per hour movement and the band going from -5 to +5 around the stuck angle, there is a 40-minute timeframe where it's impossible to tell a stuck tracker from a healthy one. A tracker stuck at 0 degrees is the hardest to detect because 0 is a legitimate value for both noon and all through the night when the panels stow.
 
 ### Exercise 2.6 - Store and Forward
-Prior to this exersize the tlm_v sample count is as follows:
+Prior to this exercise the v_tlm sample count is as follows:
 MariaDB [plant]> select count(*) from v_tlm;
 +----------+
 | count(*) |
@@ -337,7 +337,7 @@ MariaDB [plant]> select count(*) from v_tlm;
 +----------+
 1 row in set (0.004 sec)
 
-After re-running platsim for the 12 hours on 10-10-2026 and cycling the database with docker compose db stop, docker compose db start, approx 30 seconds apart the count is as follows:
+After re-running plantsim for the 12 hours on 10-10-2026 and cycling the database with docker compose stop db, docker compose start db, approx 30 seconds apart the count is as follows:
 MariaDB [plant]> select count(*) from v_tlm;
 +----------+
 | count(*) |
@@ -517,7 +517,7 @@ same outages on SPS01_B01_INV02
 2026-11-04 17:07:42,223 INFO     plantsim: done: 720 cycles, 56080 rows written, 1156pooled, 0 dropped, missed polls {'SPS01_B01_INV02': 20}
 
 Note the 0 dropped records and 1156 spooled (went more than 30 seconds this time)
-The handshake error depends on the timing of exactly when the DB goes offline and back online. MariaDB was not ready for the login yet when platsim attempted to reconnect. This is not a problem and cleared right away on the next write.
+The handshake error depends on the timing of exactly when the DB goes offline and back online. MariaDB was not ready for the login yet when plantsim attempted to reconnect. This is not a problem and cleared right away on the next write.
 MariaDB [plant]> select count(*) from v_tlm;
 +----------+
 | count(*) |
@@ -536,6 +536,33 @@ MariaDB [plant]> source db/queries/data_gaps.sql
 | SPS01_B01_INV02 | OPER_ST    | 2026-10-10 16:59:00.000 | 2026-10-10 17:20:00.000 |  1260 |
 +-----------------+------------+-------------------------+-------------------------+-------+
 4 rows in set (0.053 sec)
-Returns only the original planned fault outages
+MariaDB [plant]> select * from v_tlm where point = 'COMM_ST' and value = 0;
++-----------------+-------------+---------+----------+-------------------------+-------+---------+
+| device          | device_type | point   | point_id | ts                      | value | quality |
++-----------------+-------------+---------+----------+-------------------------+-------+---------+
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:00:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:01:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:02:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:03:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:04:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:05:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:06:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:07:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:08:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:09:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:10:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:11:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:12:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:13:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:14:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:15:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:16:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:17:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:18:00.000 |     0 |     192 |
+| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:19:00.000 |     0 |     192 |
++-----------------+-------------+---------+----------+-------------------------+-------+---------+
+20 rows in set (0.002 sec)
+
+The query for data gaps returns only the original planned fault outages and COMM_ST is not amoung the missing points listed. Looking further we see that COMM_ST values of 0 (lost) is present for every minute in the gap, therefore, we know that there is a comms outage for SPS01_B01_INV02.
 
 ### Exercise 2.7 - Scale and connections
