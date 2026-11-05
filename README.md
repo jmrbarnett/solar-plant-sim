@@ -71,33 +71,65 @@ python/
 ```
 
 ## How to Run
-Set up Environment to Run
-    With docker installed, from the start menu start docker
-    Open Ubuntu shell
-        cd ~/src/solar-plant-sim
-        code .
-    in VS Code terminal window
-        docker compose up -d
-        docker compose ps       # wait for healthy DB
-        cd python
-        source .venv/bin/activate
+## Setup (once)
 
-Module 1:
-    python python/sim/generate_day.py
+Prerequisites: WSL2 Ubuntu, Docker Desktop, Python 3.12+, and the MariaDB client,
+and the build tools for the mariadb Python package
 
-    To look at DB
-        mariadb -h 127.0.0.1 -u plant_app -p plant     # enter the plant_app user's password
-        source db_queries/*.sql associated with each exercise as needed
-        to modify the partitions of telemetry in exercise 1.8 use db/migrations/001_p2027_01.sql
+```bash
+sudo apt install -y python3-venv python3-pip mariadb-client libmariadb-dev gcc python3-dev
+```
 
-Module 2: (presupposes that Module 1 has been run successfully)
-    Run the simulator as follows:
-        plantsim --hours 12        # 12 simulated hours = 12 real minutes
-    Run pytest from the python directory with each new test verifying the number of successful tests runs:
-        cd python
-        pytest                                              # all tests
-    Code coverage can be seen with the following command:
-        pytest --cov=plantsim --cov-report=term-missing     # with coverage
-    When re-running for COMM_ST points use 7 hours instead of 12
+```bash
+cd ~/src/solar-plant-sim
+cp .env.example .env              # then set the passwords in .env
+docker compose up -d              # first start runs db/init/*.sql
+docker compose ps                 # wait until plant-db is healthy
 
+cd python
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"           # editable install + test tools; creates the plantsim command
+```
 
+## Each session
+
+```bash
+cd ~/src/solar-plant-sim
+docker compose up -d
+cd python
+source .venv/bin/activate
+```
+
+## Module 1: generate one day of data
+
+From the repo root, with the venv active:
+
+```bash
+python python/sim/generate_day.py
+mariadb -h 127.0.0.1 -u plant_app -p plant      # then: source db/queries/<file>.sql
+```
+
+## Module 2: run the simulator
+
+From `python/`:
+
+```bash
+plantsim --hours 12                                  # 11:00–23:00 UTC on 2026-10-10; 12 real minutes
+plantsim --config config/plant_large.toml --hours 1  # 402 devices on 2026-10-11
+plantsim --hours 1 --verbose                         # DEBUG output, including cycle times
+```
+
+Faults in `config/plant.toml`: underperformer SPS01_B02_INV03, comms outage on
+SPS01_B01_INV02 (17:00–17:20), and tracker SPS01_B01_TRK03 stuck from 18:00.
+If the database is unavailable, failed batches are saved to `spool.jsonl` and
+replayed automatically once writes succeed again.
+
+## Testing
+
+From `python/` (pytest reads its settings from `pyproject.toml` there):
+
+```bash
+pytest                                               # 36 tests
+pytest --cov=plantsim --cov-report=term-missing      # with coverage
+```

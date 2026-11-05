@@ -547,16 +547,17 @@ MariaDB [plant]> source db/queries/2_4_comms_outages.sql
 The query for data gaps returns only the original planned fault outages and COMM_ST is not among the missing points listed. Looking further we see that COMM_ST values of 0 (lost) are present for every minute in the gap, therefore, we know that there is a comms outage for SPS01_B01_INV02.
 
 ### Exercise 2.7 - Scale and connections
-Created plant_large.toml to increase the number of banks from 2 to 50, set ac_kw and dc_kw to 50000and 65000 resectively, and removed all the fault definitions since they were unnecessary. Ran the following command:
-plantsim --config config/plant_large.toml --hours 1 --verbose 2>&1 | grep "cycle"
+Created plant_large.toml to increase the number of blocks from 2 to 50, set ac_kw and dc_kw to 50,000 and 65,000 respectively, and removed all the fault definitions since they were unnecessary. Ran the following command:
+plantsim --config config/plant_large.toml --hours 1 --verbose 2>&1 | grep "cycle|behind"
 and found cycles to be between 0.051 to 0.054 seconds with the final message
 2026-11-05 10:23:51,449 INFO     plantsim: done: 60 cycles, 108360 rows written, 0 spooled, 0 dropped, missed polls {}
 
 Changed poller.py to poll each device in serial and re-ran the same test
 the cycles now range from 12.016 to 12.920 seconds
-2026-11-05 10:44:29,534 INFO     plantsim: done: 0 cycles, 108360 rows written, 0 spooled, 0 dropped, missed polls {}
+Each write is followed by a message that the poller is behind, growing by around 12 seconds each cycle to a final reported lag of 673.2 seconds over the course of one simulated hour (not including the final 12 second lag).
+2026-11-05 10:44:29,534 INFO     plantsim: done: 60 cycles, 108360 rows written, 0 spooled, 0 dropped, missed polls {}
 
-The concurrent polling is significantly more efficient and necessary for processing the data in real time. The poller does not need to wait for a response and can move on the poll the next device. The average cycle time is closer to the response time for one device instead of the sum of all the response times.
+The concurrent polling is significantly more efficient and necessary for processing the data in real time. The poller does not need to wait for a response before polling the next device. The average cycle time is closer to the response time for the slowest single device instead of the sum of the response times for each polled device. A twelve second delay when polling every device once is untenable when polling must be done every second (running at 60x speed).
 
 Update to writer.py to keep the connection and only reconnect after an error. Ran pytest with new test with 36 passed.
 Then executed a shorter run on 10-10-2026 (plant.toml) for just one hour:
@@ -568,6 +569,15 @@ This confirms that the connection was opened once for the full hour of data
 Next, rerun the 2.6 outage test using the following steps:
 1. Clear October 10: DELETE FROM telemetry WHERE ts >= '2026-10-10' AND ts < '2026-10-11';
 2. Run plantsim --hours 12, and stop and start the database partway through.
+
+plantsim --hours 12
+2026-11-05 12:05:33,536 INFO     plantsim: simulating SPS01 from 2026-10-10 11:00:00 to 2026-10-10 23:00:00 at 60x
+2026-11-05 12:05:35,542 INFO     plantsim.writer: connected to database
+2026-11-05 12:05:35,564 INFO     plantsim.writer: wrote 156 rows (total 156)
+2026-11-05 12:05:37,597 INFO     plantsim.writer: wrote 182 rows (total 338)
+...
+Connect to database only once at the start of the run - not for each write:
+
 The output around when the DB was stopped and restarted:
 ...
 2026-11-05 12:06:32,309 INFO     plantsim.writer: wrote 156 rows (total 4602)
@@ -593,6 +603,8 @@ The output around when the DB was stopped and restarted:
 2026-11-05 12:07:30,397 INFO     plantsim.writer: wrote 500 rows (total 7258)
 2026-11-05 12:07:30,402 INFO     plantsim.writer: wrote 500 rows (total 7758)
 ...
+Note the "connected to database" appears once just before resumed writes and the replay of spooled data
+
 The output around the planned faults:
 ...
 2026-11-05 12:11:31,956 INFO     plantsim.writer: wrote 156 rows (total 28002)
@@ -629,8 +641,11 @@ The output around the planned faults:
 2026-11-05 12:11:54,096 INFO     plantsim.writer: wrote 152 rows (total 29638)
 2026-11-05 12:11:56,104 INFO     plantsim.writer: wrote 156 rows (total 29794)
 ...
-The final line:
+No change from previous run
+
+...
 2026-11-05 12:17:32,575 INFO     plantsim: done: 720 cycles, 56080 rows written, 1656 spooled, 0 dropped, missed polls {'SPS01_B01_INV02': 20}
+The final line confirms 12 ours of data (720 cycles) produced 56080 rows. 1656 were spooled, 0 dropped, and 20 missing polls as expected.
 
 Including all the rows added to the telemetry we should see 203260 rows:
 Day	                                    Rows
