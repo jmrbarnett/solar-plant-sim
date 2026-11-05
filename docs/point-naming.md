@@ -112,6 +112,15 @@ point names below, so one template defines every inverter.
 
 ## 6. Point lists by device type
 
+### Common Points (all devices)
+
+| Point          | Unit | Description                               | SunSpec equivalent |
+|----------------|------|-------------------------------------------|--------------------|
+| `COMM_ST`      | —    | 1 = communicating, 0 = lost               | **                 |
+
+** Produced by the poller, not read from the device, so every device has them even when it is not responding.
+These points have no SunSpec equivalent; SunSpec defines only device-side registers.
+
 ### Inverter (`INV`)
 
 | Point          | Unit | Description                               | SunSpec equivalent |
@@ -129,6 +138,7 @@ point names below, so one template defines every inverter.
 | `OPER_ST`      | —    | Operating state                           | `St`               |
 | `FAULT_ALM`    | —    | Fault / event bit-field                   | `Evt1`             |
 | `P_LIM_SP_PCT` | %    | Active power limit setpoint               | `WMaxLimPct`       |
+
 
 ### Revenue meter (`MTR`)
 
@@ -154,6 +164,7 @@ point names below, so one template defines every inverter.
 | `WIND_DIR_DEG` | °    | Wind direction               | `WndDir`           |
 | `RH_PCT`       | %    | Relative humidity            | `RH`               |
 
+
 ### Tracker controller (`TRK`)
 
 | Point           | Unit | Description                                                          |
@@ -164,7 +175,6 @@ point names below, so one template defines every inverter.
 | `MODE_ST`       | —    | 1 = tracking, 2 = backtracking, 3 = wind stow, 4 = manual, 5 = fault |
 | `MOTOR_ST`      | —    | Motor state                                                          |
 | `BATT_V_V`      | V    | Controller backup battery voltage                                    |
-| `COMM_ST`       | —    | 1 = communicating, 0 = lost                                          |
 | `WIND_STOW_ALM` | —    | Wind-stow active alarm                                               |
 | `STOW_CMD`      | —    | Command: stow now                                                    |
 | `FAULT_ALM`     | —    | Fault bit-field                                                      |

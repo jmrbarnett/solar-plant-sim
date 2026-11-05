@@ -11,6 +11,11 @@
 --  P_DC = total DC capacity of the plant (kW)
 --  H_POA = total plane-of-array insolation over the day (kWh/m²)
 --  G_STC = standard test condition irradiance (1 kW/m²)
+--
+-- This query is used in more than one exercise. The date range should be as follows 
+--  for the associated tests:
+--    Module 1 tests: '2026-10-9' and '2026-10-10'
+--    Module 2 tests: '2026-10-10' and '2026-10-11'
       
 WITH samples AS (                         -- 1. meter power with the previous sample
   SELECT ts, value AS kw,
@@ -18,7 +23,7 @@ WITH samples AS (                         -- 1. meter power with the previous sa
          LAG(value) OVER w AS prev_kw
   FROM v_tlm
   WHERE device = 'SPS01_MTR01' AND point = 'AC_P_KW'
-    AND ts >= '2026-10-09' AND ts < '2026-10-10'
+    AND ts >= '2026-10-10' AND ts < '2026-10-11'
   WINDOW w AS (PARTITION BY point_id ORDER BY ts)
 ),
 energy AS (                               -- 2. integrate to one row of kWh
@@ -31,7 +36,7 @@ insolation AS (                           -- 3. sunlight on the panels, kWh/m2
   SELECT SUM(value) * 60 / 3600000 AS h_poa_kwh_m2
   FROM v_tlm
   WHERE device = 'SPS01_MET01' AND point = 'POA_IRR_WM2'
-    AND ts >= '2026-10-09' AND ts < '2026-10-10'
+    AND ts >= '2026-10-10' AND ts < '2026-10-11'
 ),
 plant AS (                                -- 4. DC nameplate, kW
   SELECT dc_capacity_kw FROM site WHERE code = 'SPS01'

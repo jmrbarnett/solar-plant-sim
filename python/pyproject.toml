@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plantsim"
+version = "0.2.0"
+description = "Solar plant telemetry simulator"
+requires-python = ">=3.12"
+dependencies = ["mariadb>=1.1", "python-dotenv>=1.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "pytest-cov>=5"]
+
+[project.scripts]
+plantsim = "plantsim.main:run"      # creates a `plantsim` command
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
