@@ -536,33 +536,14 @@ MariaDB [plant]> source db/queries/data_gaps.sql
 | SPS01_B01_INV02 | OPER_ST    | 2026-10-10 16:59:00.000 | 2026-10-10 17:20:00.000 |  1260 |
 +-----------------+------------+-------------------------+-------------------------+-------+
 4 rows in set (0.053 sec)
-MariaDB [plant]> select * from v_tlm where point = 'COMM_ST' and value = 0;
-+-----------------+-------------+---------+----------+-------------------------+-------+---------+
-| device          | device_type | point   | point_id | ts                      | value | quality |
-+-----------------+-------------+---------+----------+-------------------------+-------+---------+
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:00:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:01:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:02:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:03:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:04:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:05:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:06:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:07:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:08:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:09:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:10:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:11:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:12:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:13:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:14:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:15:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:16:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:17:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:18:00.000 |     0 |     192 |
-| SPS01_B01_INV02 | INV         | COMM_ST |       52 | 2026-10-10 17:19:00.000 |     0 |     192 |
-+-----------------+-------------+---------+----------+-------------------------+-------+---------+
-20 rows in set (0.002 sec)
+MariaDB [plant]> source db/queries/2_4_comms_outages.sql
++-----------------+-------------------------+-------------------------+---------+
+| device          | outage_start            | outage_end              | minutes |
++-----------------+-------------------------+-------------------------+---------+
+| SPS01_B01_INV02 | 2026-10-10 17:00:00.000 | 2026-10-10 17:20:00.000 |      20 |
++-----------------+-------------------------+-------------------------+---------+
+1 row in set (0.021 sec)
 
-The query for data gaps returns only the original planned fault outages and COMM_ST is not amoung the missing points listed. Looking further we see that COMM_ST values of 0 (lost) is present for every minute in the gap, therefore, we know that there is a comms outage for SPS01_B01_INV02.
+The query for data gaps returns only the original planned fault outages and COMM_ST is not among the missing points listed. Looking further we see that COMM_ST values of 0 (lost) are present for every minute in the gap, therefore, we know that there is a comms outage for SPS01_B01_INV02.
 
 ### Exercise 2.7 - Scale and connections
