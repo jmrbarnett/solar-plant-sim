@@ -56,23 +56,29 @@ python/
 ├── pyproject.toml            # replaces requirements.txt
 ├── config/
 │   ├── plant.toml            # site, simulation and fault settings
+│   ├── plant_m3.toml         # site, simulation and fault settings Module 3
 │   └── plant_large.toml      # scaled plant config
 ├── src/
 │   └── plantsim/
 │       ├── __init__.py
 │       ├── clock.py          # accelerated simulation time
 │       ├── config.py         # loads plant.toml into dataclasses
-│       ├── weather.py        # sun, clouds, temperatures
-│       ├── devices.py        # Inverter, Meter, MetStation, Tracker
-│       ├── poller.py         # async polling
 │       ├── db.py             # connection + point registry
+│       ├── devices.py        # Inverter, Meter, MetStation, Tracker
+│       ├── field.py          # field side simulated devices
+│       ├── modbus_poller.py  # polling over modebus tcp
+│       ├── poller.py         # async polling
+│       ├── registers.py      # Modbus register map
+│       ├── weather.py        # sun, clouds, temperatures
 │       ├── writer.py         # batching database writer
 │       └── main.py           # wiring + command line
 ├── tests/
 │   ├── fakes.py
 │   ├── test_config.py
 │   ├── test_devices.py
+│   ├── test_modbus.py
 │   ├── test_poller.py
+│   ├── test_registers.py
 │   ├── test_weather.py
 │   └── test_writer.py
 └── sim/
@@ -141,3 +147,32 @@ From `python/` (pytest reads its settings from `pyproject.toml` there):
 pytest                                               # 36 tests
 pytest --cov=plantsim --cov-report=term-missing      # with coverage
 ```
+
+## Module 3: inspect the communications
+
+Install tshark for superusers only.
+
+```bash
+cd ~/src/solar-power-sim
+sudo apt install -y tshark
+```
+
+ Reinstall dependencies to include now pymodbus
+
+ ```bash
+cd python
+source .venv/bin/activate
+pip install -e ".[dev]"
+pip show pymodbus | head -2      # expect Version: 3.16 or later
+ ```
+
+### Module 3 Testing:
+
+```bash
+cd ~/src/solar-plant-sim/python
+pytest                                            # expect 45 passed: 36 + 6 register + 3 Modbus
+plantsim --config config/plant_m3.toml --hours 1  # Also run with 7 hours for tshark data
+```
+
+
+

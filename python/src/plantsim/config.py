@@ -37,10 +37,17 @@ class FaultConfig:
 
 
 @dataclass(frozen=True)
+class ModbusConfig:
+    host: str = "127.0.0.1"
+    port: int = 5020
+
+
+@dataclass(frozen=True)
 class Config:
     site: SiteConfig
     sim: SimConfig
     faults: FaultConfig
+    modbus: ModbusConfig = ModbusConfig()
 
 
 def load(path: Path) -> Config:
@@ -61,4 +68,5 @@ def load(path: Path) -> Config:
             seed=sim["seed"],
         ),
         faults=FaultConfig(**faults),
-    )
+        modbus=ModbusConfig(**raw.get("modbus", {})),
+        )

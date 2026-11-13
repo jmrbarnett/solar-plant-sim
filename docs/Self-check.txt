@@ -1,0 +1,265 @@
+Module 1
+
+1. Why do historians store narrow (point, ts, value, quality) rows instead of one column per measurement?
+    A narrow (or "long") table has one row per measurement per timestamp. A wide table has one column per
+    measurement (ac_kw, dc_kw, temp_c, …).
+    Historians use narrow tables because:
+    • Points change constantly. Plants add sensors, vendors rename registers, devices are replaced. With a
+      narrow table a new point is just a new row in point; a wide table needs an ALTER TABLE (a schema change) every time.
+    • One table serves every device type. Inverters, meters, met stations and trackers all measure
+      different things; a wide design needs a separate table per type.
+    • Points arrive at different rates. A meter may report every second and a temperature every minute.
+      Narrow rows store only what arrived; a wide row would be mostly NULLs.
+    • Quality travels with each value. Every reading carries its own quality code.
+    • Generic tools work everywhere. One query, trend screen or rollup job handles any point.
+    The trade-off: reports that need several points side by side must pivot (turn rows into columns), and the
+    table has many more rows. Historians handle that with rollup tables like telemetry_15m and wide reporting views.
+
+2. Why can't telemetry have a foreign key to point, and what enforces integrity instead?
+    A foreign key makes the database reject a row whose point_id doesn't exist in point.
+    telemetry can't have one because it is partitioned, and InnoDB (MariaDB's default storage engine)
+    doesn't support foreign keys on partitioned tables. Even without that rule, many historians skip foreign
+    keys on high-rate data, because checking the parent table on every insert costs throughput.
+    Integrity is enforced by the writer instead: the only code that inserts telemetry looks up point_id
+    from point first (in Module 2, the PointRegistry does this, creating the point if needed).
+    Configuration tables (site, device, point) keep their foreign keys, because they change rarely
+    and correctness matters more than speed there.
+
+3. What is partition pruning, and how does it make data retention cheap?
+    Partitioning splits one logical table into separate physical files by a key — here, by month of ts.
+    Partition pruning is the optimizer skipping partitions that can't contain matching rows:
+    WHERE ts >= '2026-10-09' AND ts < '2026-10-10' reads only p2026_10.
+    EXPLAIN PARTITIONS shows which partitions a query will touch.
+    Retention is cheap because removing a month is ALTER TABLE telemetry DROP PARTITION p2026_10:
+    the database deletes one file in milliseconds. The alternative,
+    DELETE FROM telemetry WHERE ts < …, removes millions of rows one at a time, can run for hours,
+    bloats the transaction logs and locks the table.
+    Caveats: queries without a ts filter read every partition, and new partitions must be created
+    ahead of time by splitting the empty pmax partition.
+
+4. Why store timestamps in UTC, and what breaks if you don't?
+    UTC (Coordinated Universal Time) has no daylight saving time (DST) and is the same everywhere.
+    If you store local time instead:
+    • The autumn DST change repeats an hour. 01:00–01:59 happens twice, so two readings share one
+      timestamp — duplicate keys or silently overwritten data.
+    • The spring change skips an hour. 02:00–02:59 never exists, which looks like a data gap.
+    • Durations and energy are wrong across a DST change, because a "day" is 23 or 25 hours.
+    • Sites in different time zones can't be compared without conversion — a problem for a fleet
+      spread across the country.
+    Rule: store UTC and convert to site local time only for display (MariaDB's CONVERT_TZ,
+    or the HMI's time-zone setting). The simulator's site.timezone column exists for that.
+
+5. What's the difference between GROUP BY and a window function? Give a PV example of each.
+    • GROUP BY collapses many rows into one row per group and returns only the aggregate.
+    • A window function (... OVER (PARTITION BY ... ORDER BY ...)) calculates across related rows
+      but keeps every row, adding the result as a new column.
+
+    -- GROUP BY: one row per inverter — total energy for the day
+    SELECT device, SUM(kwh) AS daily_kwh
+    FROM interval_energy
+    GROUP BY device;
+
+    -- Window function: every sample kept, each with its 1-minute ramp
+    SELECT ts, value,
+           value - LAG(value) OVER (PARTITION BY point_id ORDER BY ts) AS ramp_kw
+    FROM v_tlm
+    WHERE device = 'SPS01_MTR01' AND point = 'AC_P_KW';
+
+    Other window-function uses from the module: latest value per point (ROW_NUMBER), energy integration
+    (LAG of time and power), fleet comparison (MEDIAN ... OVER (PARTITION BY ts)) and gap detection (LEAD).
+
+6. How would you detect a frozen sensor — one that reports a constant "good" value?
+    A frozen ("stuck" or "flatlined") sensor keeps sending the same value with Good quality: communication works,
+    but the measurement doesn't. Quality codes won't catch it, so look for no change where change is expected.
+    Over a sliding window, flag points whose minimum equals their maximum while the plant is operating:
+
+    WITH w AS (
+      SELECT device, point, ts, value,
+             MIN(value) OVER x AS lo,
+             MAX(value) OVER x AS hi
+      FROM v_tlm
+      WHERE ts >= '2026-10-09 15:00' AND ts < '2026-10-09 21:00'      -- daylight only
+      WINDOW x AS (PARTITION BY point_id ORDER BY ts
+                   ROWS BETWEEN 29 PRECEDING AND CURRENT ROW)          -- last 30 samples
+    )
+    SELECT device, point, MIN(ts) AS first_flagged, COUNT(*) AS flagged_samples
+    FROM w
+    WHERE lo = hi
+    GROUP BY device, point;
+
+    Refinements used in practice:
+    • Only check when the value should be moving: daylight hours, or when a related point is changing
+      (irradiance moving but an inverter's power flat).
+    • Use a tolerance (hi - lo < 0.01) for sensors that jitter in the last digit when stuck.
+    • Compare with neighbors: one met station flat while another varies is a strong signal.
+    • Exclude legitimately flat values: an inverter clipping at exactly 250 kW, or 0 at night, is
+      constant for good reason.
+
+7. What does Performance Ratio tell you that raw energy doesn't?
+    Raw energy (kWh) depends mostly on weather: a cloudy day produces less even when nothing is wrong.
+    Performance Ratio (PR) divides out the weather by comparing delivered energy with what a lossless
+    plant would produce from the same measured sunlight:
+
+    PR = E_AC / (P_DC × H_POA / G_STC)
+    E_AC is metered energy, P_DC the panel nameplate capacity, H_POA the plane-of-array insolation
+    (sunlight energy per m², from the met station) and G_STC = 1 kW/m².
+
+    So PR answers "how well did the equipment perform?" rather than "how sunny was it?", which makes
+    it comparable across days, seasons and plants. A healthy plant is typically 0.75–0.85; a sustained
+    drop points to a fault, soiling or degradation. The Module 1 simulator's 0.922 was high because it
+    ignores temperature losses (the largest real-world loss), soiling, shading, mismatch and downtime;
+    the planted underperforming inverter alone cost about 3 points of PR.
+
+8. How would you answer "what was the curtailment limit at 14:05 yesterday?" from the database?
+    plant_setpoint is system-versioned: MariaDB keeps every past version of each row with the time range
+    it was current. Query it as of that moment:
+
+    SELECT site_id, p_limit_kw, pf_target, updated_by
+    FROM plant_setpoint FOR SYSTEM_TIME AS OF '2026-10-14 20:05:00'   -- 14:05 Mountain = 20:05 UTC
+    WHERE site_id = 1;
+
+    Points to mention in an interview:
+    • Convert to UTC first: "14:05 yesterday" is the questioner's local time.
+    • FOR SYSTEM_TIME ALL with ROW_START and ROW_END shows the full change history around that time.
+    • The answer is when the database row changed, which can differ from when the limit took effect
+      at the plant controller; production designs often also store an explicit effective_at and the
+      utility's dispatch reference.
+    • updated_by must be set on every change: versioning records when, not who.
+
+Module 2:
+
+If you can answer these without notes, you're ready for Module 3.
+
+1. Why does def f(items=[]) misbehave, and what's the fix?
+    Mutable default arguments are shared and evaluated once when the function is defined.
+    Subsequent calls to the function may not behave as expected. The proper signature to
+    ensure each call has its own list is def f(items=None) and the list should be
+    initialized in the body of the function (if items is None: items = []).
+
+2. What does b = a do for a list, and how do you make a real copy?
+    This makes both b and a point to the same list (aka an alias). If you want b to be a
+    new list that is a copy of a use a.copy() or copy.deepcopy(a) (when there are
+    inner lists involved - requires import copy) instead of simply a
+
+3. Why test if value is None: instead of if not value: for telemetry?
+    The problem is "if not value" would also flag legitimate values of 0 and 0.0, where
+    "value is None" allows for 0 and 0.0 as valid values
+
+4. What is the GIL, and why do threads still help for network I/O?
+    GIL is Global Interpreter Lock is a mutex in CPython that allows only one thread to execute
+    Python bytecode at a time even on multi core CPUs. It protects CPython's memory management
+    from race conditions. Threads are still helpful because they release the GIL
+    when waiting on I/O. When blocked on a socket or DB call they are not running Python
+    bytecode, so other threads (including the event loop) can run in the meantime.
+
+5. Where can an asyncio task be interrupted by another task? Why does that make shared state safer than with threads?
+    asyncio tasks are interrupted in coroutines at await statements only. Code between await statements
+    is guaranteed to not be interleaved with other tasks. This means locks are not necessary.
+    Also of note, the state of any task must be consistent whenever you encounter an
+    await statement.
+
+6. What happens to the event loop if a coroutine calls time.sleep(5)? What should it do instead?
+    Using time.sleep() inside a coroutine will pause the whole event loop thread. You can use
+    await asyncio.sleep() to wait, and await asyncio.to_thread() for unavoidable blocking calls.
+
+7. Why does _poll_one catch its own exceptions inside a TaskGroup?
+    Within a task group, if one task has an unhandled exception, all the tasks are
+    cancelled. This would result in canceling the whole cycle if there is one unresponsive
+    device. It also makes it possible to identify the device that threw the exception
+
+8. What does asyncio.Queue(maxsize=...) protect against?
+    This protects against unbound memory growth when the poller is faster than the writer,
+    for example when the DB is slow or down. When the queue is full await queue.put() puts
+    backpressure on the poller and it will slow as well. The limit keeps the queue from
+    growing to fill memory.
+
+9. Why does the meter read inv.state() rather than inv.read()?
+    Loss of comms does not mean loss of energy. read() simulates a network poll and raises
+    CommsError during INV02’s outage while state() is the inverter’s actual physical output.
+    Meters measure power at the point of interconnection; they don't depend on SCADA
+    being able to talk to each inverter.
+
+10. Why is src/ layout plus pip install -e better than running scripts from a folder?
+    The src/ layout itself ensures tests import the installed package, not whatever
+    files happen to be in the current folder. Together with pyproject.toml, imports work
+    from any folder, we get declared dependencies, and the plantsim command. Another benefit
+    is we can see and run code changes without reinstalling.
+
+11. What does pytest.approx solve, and when would == be acceptable?
+    Floating point errors would cause this to effectively never be true when comparing floating point
+    numbers. The == should only be used for values that can be exact such as integers, strings,
+    objects with equal fields, and floats only when they are exact by construction.
+
+12. Why schedule polls on a fixed timeline instead of sleeping one interval after each cycle?
+    There is a non zero amount of time to process each cycle and using an interval beginning
+    after a cycle would result in times that creep forward. A fixed timeline keeps timestamps
+    on whole minutes and enables the poller to detect and report being behind schedule.
+
+Module 3
+
+1. A manual lists a value at 40010. What protocol address do you send, and why is this a common source of bugs?
+    The same register has two common names. One is the Protocol Address which is the number sent on the wire. The
+    numbering begins at 0. The values in the manuals are Reference Numbers and they begin their numbering
+    at 40001. The above 40010 is in a manual so it is the Reference Number and the actual protocol address would
+    be 9 (subtracting the 40001). It is common to have off-by-one errors due to mixing up these two representations
+    and forgetting to use the start at 0 for protocol addresses and 1 for reference numbers.
+
+2. What's the difference between holding and input registers, and which function code reads each?
+    Input registers are 16 bit read only registers that can have measurements on some devices. Holding registers
+    are 16 bit read/write registers that can hold and command measurements, setpoints, and configureations.
+    The function code for input registers is 04 while the function code for holding registers is 03.
+
+3. A float32 power reads as 2.4e-41 kW in SCADA. What's the most likely cause, and how do you confirm it?
+    Because the size of this number is unrealistic we can suspect the most likely cause is swapped words
+    (using inconsistent word order when encoding or decoding a value). We can verify this by changing
+    the word "big" to "little" or visa versa in the Reg class encode or decode functions so that they match.
+    When they do not match numbers will be either way too big or way too little to be realistic. We must match
+    the word order that the device sends.
+
+4. What does the MBAP header contain, and what is the transaction ID for?
+    The MBAP header is the 7 byte Modbus Application Protocol header that holds the following pieces of data:
+    Transaction ID (one up number for matching requests to responses), Protocol ID (always 0 for Modbus), Length
+    (this give the reader information on how much to read for this response), and Unit ID (the device, slave,
+    logical device, or module). Unit IDs are assigned to each device in a system. Valid range is from 0 to 255,
+    however, 0 is traditionally broadcast, 1-247 are normal usable addresses for individual units, and 248-255
+    are reserved by the specifications because some vendors still use them. Assignments are arbitrary for the
+    most part. The transaction ID is assigned by the sender and must be returned unchanged in the header.
+
+5. Exception 0B versus a timeout: what does each tell you about where the problem is?
+    With the 0B exception we know the gateway forwarded the request but the device was silent and did not respond
+    to the gateway. In this case the problematic device can be identified. With a timeout there is no response
+    at all from the gateway which likely means the gateway itself or the plumbing around it is the problem.
+
+6. How would you store −3.5 °C in an int16 register with scale 0.1? Give the hex value.
+    1. Apply the scale factor (-3.5/0.1 -> -35)
+    2. Note the number of words (16 bit - 4 hex words) - making sure the magnitude fits in the number of words
+    3. Express the positive integer in binary 0000 0000 0010 0011
+        If the number is positive we simply express it as a Hex number (0023)
+        However, because it is a negative number we need to do the following:
+    4. Take the two complement a. flip every bit (1111 1111 1101 1100) b. add 1 (1111 1111 1101 1101)
+    5. Express as Hex number (FFDD)
+
+7. Why does ModbusPoller use retries=0 and a short timeout?
+    The poller already has a schedule that manages missed responses by setting COMM_ST. The idea with the 0 retries
+    and a short timeout is to fail fast and try again next cycle and let the poller base class handle the silent devices.
+
+8. Why does it open one connection per device instead of sharing one client?
+    Without a connection per device the every tasks would queue on the lock for connection and the cycle
+    response time would take the sum of the response times.
+
+9. Give two reasons to read a device's whole map in one request instead of point by point.
+    Fewer request/response round trips and because all the data comes in one response, longer values
+    will not be split
+
+10. What's the difference between a tshark capture filter and a display filter, and how do you make tshark decode
+Modbus on port 5020?
+    The capture filter decides which packets are saved using Berkley Packet Filter syntax (tcp port 5020)
+    While the display filter decides which saved packets are shown. It uses the Wireshark field names.
+    Using the -d tcp.port==5020,mbtcp flag will decode Modbus on port 5020 instead of 520.
+
+11. Name four things an OPC UA read returns that a Modbus register doesn't.
+
+12. When does an OPC UA subscription send nothing, and why is that useful?
+
+13. Why is Modbus normally kept on its own network, behind a firewall?
+    Security
